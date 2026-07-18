@@ -211,7 +211,7 @@ export default function AdminDatabasePage() {
               <p className="mt-1">
                 Open{" "}
                 <a
-                  href="https://supabase.com/dashboard/project/kgsmdprurziemjmkouha/settings/api-keys"
+                  href="https://supabase.com/dashboard/project/xwidthoocmvbktskhufu/settings/api-keys"
                   target="_blank"
                   rel="noreferrer"
                   className="font-medium text-[var(--accent)] underline-offset-2 hover:underline"
@@ -267,7 +267,7 @@ export default function AdminDatabasePage() {
               <p className="mt-1">
                 Open the{" "}
                 <a
-                  href="https://supabase.com/dashboard/project/kgsmdprurziemjmkouha/sql/new"
+                  href="https://supabase.com/dashboard/project/xwidthoocmvbktskhufu/sql/new"
                   target="_blank"
                   rel="noreferrer"
                   className="font-medium text-[var(--accent)] underline-offset-2 hover:underline"

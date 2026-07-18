@@ -31,11 +31,19 @@ function readEnv(): ServerEnv {
 
 export const env = readEnv();
 
+/** Project URL — supports NEXT_PUBLIC_SUPABASE_URL or SUPABASE_URL. */
+export function getSupabaseUrl(): string | undefined {
+  const url =
+    process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  return url?.trim() || undefined;
+}
+
 /** Publishable (`sb_publishable_…`) or legacy anon JWT. */
 export function getSupabaseAnonKey(): string | undefined {
   const key =
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.SUPABASE_PUBLISHABLE_KEY;
   return key?.trim() || undefined;
 }
 
@@ -60,7 +68,7 @@ export function getSupabasePublicConfig(): {
   url: string;
   anonKey: string;
 } | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = getSupabaseUrl();
   const anonKey = getSupabaseAnonKey();
   if (!url || !anonKey) {
     return null;
@@ -79,7 +87,7 @@ export function requireSupabaseServiceRoleKey(): string {
 }
 
 export function getEnvStatus() {
-  const supabaseUrl = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const supabaseUrl = Boolean(getSupabaseUrl());
   const supabaseAnon = Boolean(getSupabaseAnonKey());
   const supabaseService = Boolean(getSupabaseServiceKey());
   return {
