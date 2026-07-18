@@ -22,8 +22,24 @@ export async function POST(request: Request) {
       session = await authenticate(body.data.email, body.data.password);
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Sign-in blocked for this account";
-      return fail("ACCOUNT_RESTRICTED", message, 403);
+        err instanceof Error
+          ? err.message
+          : err &&
+              typeof err === "object" &&
+              "message" in err &&
+              typeof (err as { message: unknown }).message === "string"
+            ? (err as { message: string }).message
+            : "Sign-in blocked for this account";
+      // DB/schema problems are setup issues, not account bans.
+      const setupIssue =
+        /could not find the table|schema cache|PGRST205|setup_all|Supabase/i.test(
+          message
+        );
+      return fail(
+        setupIssue ? "DB_NOT_READY" : "ACCOUNT_RESTRICTED",
+        message,
+        setupIssue ? 503 : 403
+      );
     }
     if (!session) {
       return fail("INVALID_CREDENTIALS", "Incorrect email or password", 401);
