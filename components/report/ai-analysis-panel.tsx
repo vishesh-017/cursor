@@ -23,6 +23,12 @@ function imageRelevanceTone(value?: string) {
   return "warning" as const;
 }
 
+function imageOriginTone(value?: string) {
+  if (value === "likely_photo") return "success" as const;
+  if (value === "possibly_ai_generated") return "danger" as const;
+  return "warning" as const;
+}
+
 const etaByPriority: Record<string, string> = {
   critical: "4–12 hours",
   high: "24–48 hours",
@@ -153,13 +159,26 @@ export function AiAnalysisPanel({
         </div>
       </div>
 
-      {analysis.imageRelevant ? (
+      {analysis.imageRelevant || analysis.imageOrigin ? (
         <div className="glass-card p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-semibold">AI photo scan</p>
-            <Badge tone={imageRelevanceTone(analysis.imageRelevant)}>
-              {analysis.imageRelevant.replace("_", " ")}
-            </Badge>
+            <div className="flex flex-wrap gap-1.5">
+              {analysis.imageRelevant ? (
+                <Badge tone={imageRelevanceTone(analysis.imageRelevant)}>
+                  {analysis.imageRelevant.replace("_", " ")}
+                </Badge>
+              ) : null}
+              {analysis.imageOrigin ? (
+                <Badge tone={imageOriginTone(analysis.imageOrigin)}>
+                  {analysis.imageOrigin === "possibly_ai_generated"
+                    ? "Possibly AI-generated"
+                    : analysis.imageOrigin === "likely_photo"
+                      ? "Likely real photo"
+                      : "Origin uncertain"}
+                </Badge>
+              ) : null}
+            </div>
           </div>
           <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
             <p>
@@ -172,6 +191,12 @@ export function AiAnalysisPanel({
                 {analysis.imageDepartmentHint?.replace("-", " ") ?? "—"}
               </span>
             </p>
+            {typeof analysis.imageOriginScore === "number" ? (
+              <p>
+                <span className="text-[var(--muted)]">Origin confidence · </span>
+                {Math.round(analysis.imageOriginScore * 100)}%
+              </p>
+            ) : null}
             <p className="sm:col-span-2">
               <span className="text-[var(--muted)]">Issue in frame · </span>
               {analysis.imageIssueHint ?? "—"}
@@ -180,6 +205,13 @@ export function AiAnalysisPanel({
               <p className="sm:col-span-2 text-xs text-[var(--muted)]">
                 {analysis.imageNotes}
               </p>
+            ) : null}
+            {analysis.imageWarnings?.length ? (
+              <ul className="sm:col-span-2 space-y-1 rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-900 dark:bg-rose-500/10 dark:text-rose-100">
+                {analysis.imageWarnings.map((w) => (
+                  <li key={w}>· {w}</li>
+                ))}
+              </ul>
             ) : null}
           </div>
         </div>

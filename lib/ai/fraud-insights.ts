@@ -40,14 +40,28 @@ export type FraudOpsSummary = {
 
 /** Convert Exa authenticity into an officer-facing fraud score (0–100). */
 export function computeFraudScore(ai: AiAnalysis): number {
+  let score = 0;
   if (ai.authenticity === "possibly_fake") {
-    return Math.round(Math.min(98, 55 + ai.authenticityScore * 45));
+    score = Math.round(Math.min(98, 55 + ai.authenticityScore * 45));
+  } else if (ai.authenticity === "uncertain") {
+    score = Math.round(28 + ai.authenticityScore * 35);
+  } else {
+    // likely_true — residual fraud risk when confidence is weak
+    score = Math.round(Math.max(4, (1 - ai.authenticityScore) * 40));
   }
-  if (ai.authenticity === "uncertain") {
-    return Math.round(28 + ai.authenticityScore * 35);
+
+  if (ai.imageOrigin === "possibly_ai_generated") {
+    score = Math.max(score, 72);
+    score = Math.min(98, score + 12);
+  } else if (ai.imageOrigin === "uncertain") {
+    score = Math.min(95, score + 8);
   }
-  // likely_true — residual fraud risk when confidence is weak
-  return Math.round(Math.max(4, (1 - ai.authenticityScore) * 40));
+  if (ai.imageRelevant === "not_relevant") {
+    score = Math.max(score, 60);
+    score = Math.min(98, score + 10);
+  }
+
+  return score;
 }
 
 export function fraudRiskLevel(score: number): FraudRiskLevel {
@@ -71,6 +85,14 @@ function fraudReasons(report: InfrastructureReport, score: number): string[] {
     reasons.push("Photo not relevant to civic infrastructure");
   } else if (ai.imageRelevant === "uncertain") {
     reasons.push("Photo relevance unclear");
+  }
+  if (ai.imageOrigin === "possibly_ai_generated") {
+    reasons.push("Photo flagged as possibly AI-generated / synthetic");
+  } else if (ai.imageOrigin === "uncertain") {
+    reasons.push("Photo origin uncertain (filter / stock / AI edit)");
+  }
+  if (ai.imageWarnings?.length) {
+    reasons.push(...ai.imageWarnings.slice(0, 2));
   }
   if (ai.confidence < 0.55) {
     reasons.push("Low overall triage confidence");

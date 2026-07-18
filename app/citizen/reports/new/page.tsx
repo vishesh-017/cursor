@@ -23,10 +23,14 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { useRealtimeLocation } from "@/hooks/use-realtime-location";
-import type { Priority, ReportCategory, Ward } from "@/types";
-import type { VisualSignals } from "@/lib/ai/image-scan";
+import type { InfrastructureReport, Priority, ReportCategory, Ward } from "@/types";
+import {
+  assessEvidencePhoto,
+  type VisualSignals,
+} from "@/lib/ai/image-scan";
 import { isNearAhmedabad, nearestWard } from "@/utils/geo";
 import { compressImageFile } from "@/utils/image-evidence";
+import { cacheReport } from "@/utils/report-cache";
 
 const LocationPicker = dynamic(() => import("@/components/map/location-picker"), {
   ssr: false,
@@ -60,6 +64,7 @@ type PreviewFile = {
   name: string;
   dataUrl: string;
   signals: VisualSignals;
+  scan: ReturnType<typeof assessEvidencePhoto>;
 };
 
 export default function NewCitizenReportPage() {
@@ -221,18 +226,37 @@ export default function NewCitizenReportPage() {
     void Promise.all(
       list.slice(0, 4).map(async (file) => {
         const { dataUrl, signals } = await compressImageFile(file);
+        const scan = assessEvidencePhoto(signals, {
+          title,
+          description,
+          category,
+        });
         return {
           id: `${file.name}-${file.lastModified}`,
           name: file.name,
           dataUrl,
           signals,
+          scan,
         } satisfies PreviewFile;
       })
     )
       .then((next) => {
         setPreviews((prev) => [...prev, ...next].slice(0, 6));
         setUploadProgress(100);
-        toast.success(`${next.length} image${next.length > 1 ? "s" : ""} ready for AI scan`);
+        const risky = next.filter(
+          (p) =>
+            p.scan.imageRelevant === "not_relevant" ||
+            p.scan.imageOrigin === "possibly_ai_generated"
+        );
+        if (risky.length) {
+          toast.error(
+            `${risky.length} photo${risky.length > 1 ? "s" : ""} look unrelated or AI-generated — use a real site photo`
+          );
+        } else {
+          toast.success(
+            `${next.length} image${next.length > 1 ? "s" : ""} ready — evidence check passed`
+          );
+        }
       })
       .catch(() => toast.error("Image preview failed"))
       .finally(() => {
@@ -242,7 +266,7 @@ export default function NewCitizenReportPage() {
           setUploadProgress(0);
         }, 400);
       });
-  }, []);
+  }, [title, description, category]);
 
   function applyLocationPick(pick: {
     latitude: number;
@@ -289,6 +313,18 @@ export default function NewCitizenReportPage() {
       return;
     }
 
+    const evidenceRisk = previews.find(
+      (p) =>
+        p.scan.imageRelevant === "not_relevant" ||
+        p.scan.imageOrigin === "possibly_ai_generated"
+    );
+    if (evidenceRisk) {
+      const proceed = window.confirm(
+        "This photo looks unrelated or possibly AI-generated. AMC may reject or deprioritize the ticket. Submit anyway?"
+      );
+      if (!proceed) return;
+    }
+
     setSubmitting(true);
     try {
       const ward = wards.find((w) => w.name === wardName);
@@ -317,13 +353,15 @@ export default function NewCitizenReportPage() {
       const json = (await res.json()) as {
         success: boolean;
         message?: string;
-        data?: { report: { id: string } };
+        data?: { report: InfrastructureReport };
       };
-      if (!res.ok || !json.success || !json.data) {
+      if (!res.ok || !json.success || !json.data?.report?.id) {
         throw new Error(json.message || "Submission failed");
       }
+      const created = json.data.report;
+      cacheReport(created);
       toast.success("Report submitted — AMC will review and update status");
-      router.push(`/citizen/reports/${json.data.report.id}`);
+      router.push(`/citizen/reports/${created.id}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Submission failed");
     } finally {
@@ -403,8 +441,8 @@ export default function NewCitizenReportPage() {
               <div>
                 <h2 className="font-display text-xl font-semibold">Upload site photos</h2>
                 <p className="mt-1 text-sm text-[var(--muted)]">
-                  Capture pothole clusters, waterlogging near BRTS stops, or streetlight
-                  outages. Previews stay on-device — optional for API submit.
+                  Capture the real defect on site. Selfies, memes, stock art, and
+                  AI-generated images are flagged and lower authenticity for AMC.
                 </p>
               </div>
 
@@ -453,33 +491,100 @@ export default function NewCitizenReportPage() {
               ) : null}
 
               {previews.length ? (
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {previews.map((file) => (
-                    <div
-                      key={file.id}
-                      className="group relative overflow-hidden rounded-2xl border border-[var(--border)]"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={file.dataUrl}
-                        alt={file.name}
-                        className="h-36 w-full object-cover"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPreviews((prev) => prev.filter((p) => p.id !== file.id))
-                        }
-                        className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-950/70 text-white opacity-90 transition hover:bg-rose-600"
-                        aria-label={`Remove ${file.name}`}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                      <p className="truncate bg-slate-950/50 px-2 py-1 text-[10px] text-white">
-                        {file.name}
-                      </p>
+                <div className="space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {previews.map((file) => {
+                      const bad =
+                        file.scan.imageRelevant === "not_relevant" ||
+                        file.scan.imageOrigin === "possibly_ai_generated";
+                      const watch =
+                        file.scan.imageRelevant === "uncertain" ||
+                        file.scan.imageOrigin === "uncertain";
+                      return (
+                        <div
+                          key={file.id}
+                          className={`group relative overflow-hidden rounded-2xl border ${
+                            bad
+                              ? "border-rose-400 ring-1 ring-rose-300/60"
+                              : watch
+                                ? "border-amber-300"
+                                : "border-[var(--border)]"
+                          }`}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={file.dataUrl}
+                            alt={file.name}
+                            className="h-36 w-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviews((prev) =>
+                                prev.filter((p) => p.id !== file.id)
+                              )
+                            }
+                            className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-950/70 text-white opacity-90 transition hover:bg-rose-600"
+                            aria-label={`Remove ${file.name}`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                          <div className="space-y-1 bg-slate-950/70 px-2 py-1.5">
+                            <p className="truncate text-[10px] text-white">
+                              {file.name}
+                            </p>
+                            <div className="flex flex-wrap gap-1">
+                              <Badge
+                                tone={
+                                  file.scan.imageRelevant === "relevant"
+                                    ? "success"
+                                    : file.scan.imageRelevant === "not_relevant"
+                                      ? "danger"
+                                      : "warning"
+                                }
+                                className="normal-case"
+                              >
+                                {file.scan.imageRelevant.replace("_", " ")}
+                              </Badge>
+                              <Badge
+                                tone={
+                                  file.scan.imageOrigin === "likely_photo"
+                                    ? "brand"
+                                    : file.scan.imageOrigin ===
+                                        "possibly_ai_generated"
+                                      ? "danger"
+                                      : "warning"
+                                }
+                                className="normal-case"
+                              >
+                                {file.scan.imageOrigin === "possibly_ai_generated"
+                                  ? "AI suspicion"
+                                  : file.scan.imageOrigin === "likely_photo"
+                                    ? "Likely photo"
+                                    : "Origin unsure"}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {previews.some((p) => p.scan.imageWarnings.length) ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+                      <p className="font-semibold">Evidence check</p>
+                      <ul className="mt-1 list-disc space-y-0.5 pl-4 text-xs">
+                        {Array.from(
+                          new Set(
+                            previews.flatMap((p) => p.scan.imageWarnings)
+                          )
+                        )
+                          .slice(0, 5)
+                          .map((w) => (
+                            <li key={w}>{w}</li>
+                          ))}
+                      </ul>
                     </div>
-                  ))}
+                  ) : null}
                 </div>
               ) : (
                 <p className="rounded-2xl border border-[var(--border)] bg-white/40 px-4 py-3 text-sm text-[var(--muted)] dark:bg-white/5">

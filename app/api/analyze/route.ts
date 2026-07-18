@@ -23,6 +23,10 @@ const schema = z.object({
       skinScore: z.number(),
       skyScore: z.number(),
       edgeEnergy: z.number(),
+      noiseScore: z.number().optional(),
+      smoothScore: z.number().optional(),
+      saturationMean: z.number().optional(),
+      paletteEntropy: z.number().optional(),
       fileName: z.string().optional(),
     })
     .optional(),

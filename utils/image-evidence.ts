@@ -43,7 +43,10 @@ function sampleVisualSignals(
   let skin = 0;
   let sky = 0;
   let edge = 0;
+  let noiseAcc = 0;
+  let satAcc = 0;
   let prev = -1;
+  const hueBins = new Array(12).fill(0);
 
   for (let i = 0; i < data.length; i += 4 * step) {
     const r = data[i] / 255;
@@ -54,12 +57,29 @@ function sampleVisualSignals(
     sumSq += bright * bright;
     count += 1;
 
-    if (prev >= 0) edge += Math.abs(bright - prev);
+    if (prev >= 0) {
+      const d = Math.abs(bright - prev);
+      edge += d;
+      // High-frequency residual vs neighbor — camera noise tends to be higher
+      noiseAcc += d;
+    }
     prev = bright;
 
     const max = Math.max(r, g, b);
     const min = Math.min(r, g, b);
     const sat = max === 0 ? 0 : (max - min) / max;
+    satAcc += sat;
+
+    // Rough hue bin for palette entropy
+    let hue = 0;
+    const delta = max - min;
+    if (delta > 0.02) {
+      if (max === r) hue = ((g - b) / delta) % 6;
+      else if (max === g) hue = (b - r) / delta + 2;
+      else hue = (r - g) / delta + 4;
+      hue = ((hue / 6) + 1) % 1;
+      hueBins[Math.min(11, Math.floor(hue * 12))] += 1;
+    }
 
     // Gray asphalt / concrete
     if (sat < 0.18 && bright > 0.18 && bright < 0.72) asphalt += 1;
@@ -76,6 +96,23 @@ function sampleVisualSignals(
   const n = Math.max(1, count);
   const mean = sum / n;
   const variance = Math.max(0, sumSq / n - mean * mean);
+  const noiseScore = Math.min(1, (noiseAcc / n) * 8);
+  const avgSat = satAcc / n;
+
+  // Shannon-ish entropy of hue bins (0–1)
+  let entropy = 0;
+  for (const bin of hueBins) {
+    if (!bin) continue;
+    const p = bin / n;
+    entropy -= p * Math.log2(p);
+  }
+  const paletteEntropy = Math.min(1, entropy / Math.log2(12));
+
+  // AI gens often look sharp (edges) but low sensor noise / overly smooth
+  const smoothScore = Math.min(
+    1,
+    Math.max(0, 1 - noiseScore * 1.35 + Math.min(0.25, edge / n) * 0.4)
+  );
 
   return {
     width,
@@ -88,6 +125,10 @@ function sampleVisualSignals(
     skinScore: Number((skin / n).toFixed(3)),
     skyScore: Number((sky / n).toFixed(3)),
     edgeEnergy: Number(Math.min(1, edge / n).toFixed(3)),
+    noiseScore: Number(noiseScore.toFixed(3)),
+    smoothScore: Number(smoothScore.toFixed(3)),
+    saturationMean: Number(avgSat.toFixed(3)),
+    paletteEntropy: Number(paletteEntropy.toFixed(3)),
     fileName,
   };
 }

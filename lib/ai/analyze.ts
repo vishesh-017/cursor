@@ -281,6 +281,30 @@ function confidenceFromSignals(input: {
   return Number(Math.max(0.22, Math.min(0.96, confidence)).toFixed(2));
 }
 
+function applyImageAuthenticityPenalty(
+  authenticity: AuthenticityVerdict,
+  authenticityScore: number,
+  scan?: Awaited<ReturnType<typeof scanReportImage>>
+): { authenticity: AuthenticityVerdict; authenticityScore: number } {
+  if (!scan) return { authenticity, authenticityScore };
+  let score = authenticityScore;
+  let verdict = authenticity;
+
+  if (scan.imageRelevant === "not_relevant") {
+    score = Math.min(score, 0.4);
+    if (verdict === "likely_true") verdict = "uncertain";
+  }
+  if (scan.imageOrigin === "possibly_ai_generated") {
+    score = Math.min(score, 0.32);
+    verdict = "possibly_fake";
+  } else if (scan.imageOrigin === "uncertain") {
+    score = Math.min(score, 0.55);
+    if (verdict === "likely_true") verdict = "uncertain";
+  }
+
+  return { authenticity: verdict, authenticityScore: Number(score.toFixed(2)) };
+}
+
 export function fallbackAnalysis(input: {
   title: string;
   description: string;
@@ -289,8 +313,13 @@ export function fallbackAnalysis(input: {
   imageScan?: Awaited<ReturnType<typeof scanReportImage>>;
 }): AiAnalysis {
   const base = inferFromText(input);
-  const authenticity = inferAuthenticity(input);
+  const rawAuth = inferAuthenticity(input);
   const scan = input.imageScan;
+  const authenticity = applyImageAuthenticityPenalty(
+    rawAuth.authenticity,
+    rawAuth.authenticityScore,
+    scan
+  );
   const suggestedDepartment =
     scan?.imageRelevant === "relevant"
       ? scan.imageDepartmentHint
@@ -299,7 +328,11 @@ export function fallbackAnalysis(input: {
     scan?.imageRelevant === "relevant" && scan.imageIssueHint
       ? scan.imageIssueHint
       : base.issueDetected;
-  const priorityScore = priorityToScore(base.severity);
+  const priorityScore =
+    scan?.imageOrigin === "possibly_ai_generated" ||
+    scan?.imageRelevant === "not_relevant"
+      ? Math.min(priorityToScore(base.severity), 35)
+      : priorityToScore(base.severity);
   const confidence = confidenceFromSignals({
     title: input.title,
     description: input.description,
@@ -315,7 +348,7 @@ export function fallbackAnalysis(input: {
     suggestedDepartment,
     suggestedPriority: base.severity,
     issueDetected,
-    summary: `AMC triage brief for "${input.title}": ${issueDetected} in Ahmedabad (${input.ward ?? "citywide"}). Predicted risk: ${base.severity}. Authenticity: ${authenticity.authenticity.replace("_", " ")}. Confidence ${Math.round(confidence * 100)}%. Photo: ${scan?.imageRelevant ?? "not scanned"} (${Math.round((scan?.imageRelevanceScore ?? 0) * 100)}%). Recommended routing to ${suggestedDepartment} with priority score ${priorityScore}/100.`,
+    summary: `AMC triage brief for "${input.title}": ${issueDetected} in Ahmedabad (${input.ward ?? "citywide"}). Predicted risk: ${base.severity}. Authenticity: ${authenticity.authenticity.replace("_", " ")}. Confidence ${Math.round(confidence * 100)}%. Photo: ${scan?.imageRelevant ?? "not scanned"} (${Math.round((scan?.imageRelevanceScore ?? 0) * 100)}%). Origin: ${scan?.imageOrigin ?? "n/a"}. Recommended routing to ${suggestedDepartment} with priority score ${priorityScore}/100.`,
     confidence,
     authenticity: authenticity.authenticity,
     authenticityScore: authenticity.authenticityScore,
@@ -324,10 +357,13 @@ export function fallbackAnalysis(input: {
       "Offline heuristic analysis used because Exa AI was unavailable.",
     imageRelevant: scan?.imageRelevant,
     imageRelevanceScore: scan?.imageRelevanceScore,
+    imageOrigin: scan?.imageOrigin,
+    imageOriginScore: scan?.imageOriginScore,
     imageScene: scan?.imageScene,
     imageDepartmentHint: scan?.imageDepartmentHint,
     imageIssueHint: scan?.imageIssueHint,
     imageNotes: scan?.imageNotes,
+    imageWarnings: scan?.imageWarnings,
   };
 }
 
@@ -465,7 +501,7 @@ export async function analyzeInfrastructure(input: {
           "Predict risk level (critical / high / medium / low), model confidence, authenticity, and routing.",
           "Critical = imminent safety / major service failure. Medium = notable inconvenience needing scheduled fix.",
           "Department rules: pothole / asphalt / pavement damage → roads. Clogged drain / waterlogging / sewage / sinkhole cave-in → drainage. Do NOT send potholes to drainage.",
-          "Use photo scan signals when present. If photo is not_relevant, lower authenticity and flag mismatch.",
+          "Use photo scan signals when present. If photo is not_relevant or possibly AI-generated, lower authenticity and flag mismatch.",
           "Respond with short labeled lines exactly like:",
           "Authenticity: likely_true | possibly_fake | uncertain",
           "AuthenticityScore: 0-100",
@@ -478,7 +514,7 @@ export async function analyzeInfrastructure(input: {
           "Suggested department: roads|water|drainage|electrical|sanitation|town-planning",
           "Suggested priority: low|medium|high|critical",
           "Confidence: 0-100",
-          "Officer summary: 2-3 sentences including predicted risk, photo relevance, and confidence",
+          "Officer summary: 2-3 sentences including predicted risk, photo relevance, AI-origin risk, and confidence",
           "",
           `Title: ${input.title}`,
           `Category: ${input.category}`,
@@ -486,10 +522,13 @@ export async function analyzeInfrastructure(input: {
           `Description: ${input.description}`,
           `PhotoRelevant: ${imageScan.imageRelevant}`,
           `PhotoRelevanceScore: ${Math.round(imageScan.imageRelevanceScore * 100)}`,
+          `PhotoOrigin: ${imageScan.imageOrigin}`,
+          `PhotoOriginScore: ${Math.round(imageScan.imageOriginScore * 100)}`,
           `PhotoScene: ${imageScan.imageScene}`,
           `PhotoIssue: ${imageScan.imageIssueHint}`,
           `PhotoDepartmentHint: ${imageScan.imageDepartmentHint}`,
           `PhotoNotes: ${imageScan.imageNotes}`,
+          `PhotoWarnings: ${imageScan.imageWarnings.join("; ") || "none"}`,
         ].join("\n"),
       }),
       research({
@@ -553,6 +592,11 @@ export async function analyzeInfrastructure(input: {
     if (imageScan.imageRelevant === "not_relevant") {
       blendedAuthScore = Number(Math.min(blendedAuthScore, 0.42).toFixed(2));
     }
+    if (imageScan.imageOrigin === "possibly_ai_generated") {
+      blendedAuthScore = Number(Math.min(blendedAuthScore, 0.3).toFixed(2));
+    } else if (imageScan.imageOrigin === "uncertain") {
+      blendedAuthScore = Number(Math.min(blendedAuthScore, 0.52).toFixed(2));
+    }
     const modelConfidence = Math.min(
       0.99,
       Math.max(0.22, confidencePct / 100)
@@ -584,17 +628,27 @@ export async function analyzeInfrastructure(input: {
     if (imageScan.imageRelevant === "not_relevant") {
       blendedConfidence = Math.min(blendedConfidence, 0.38);
     }
+    if (imageScan.imageOrigin === "possibly_ai_generated") {
+      blendedConfidence = Math.min(blendedConfidence, 0.36);
+    }
     const alignedScore = priorityToScore(suggestedPriority);
-    const finalPriorityScore = Math.min(
+    let finalPriorityScore = Math.min(
       100,
       Math.max(
         0,
         Math.round(priorityScore * 0.7 + alignedScore * 0.3)
       )
     );
+    if (
+      imageScan.imageOrigin === "possibly_ai_generated" ||
+      imageScan.imageRelevant === "not_relevant"
+    ) {
+      finalPriorityScore = Math.min(finalPriorityScore, 35);
+    }
 
     const authenticityFinal =
-      localAuth.authenticity === "possibly_fake"
+      localAuth.authenticity === "possibly_fake" ||
+      imageScan.imageOrigin === "possibly_ai_generated"
         ? "possibly_fake"
         : imageScan.imageRelevant === "not_relevant"
           ? "uncertain"
@@ -623,10 +677,13 @@ export async function analyzeInfrastructure(input: {
       standardsNote: standards?.answer.slice(0, 420) || undefined,
       imageRelevant: imageScan.imageRelevant,
       imageRelevanceScore: imageScan.imageRelevanceScore,
+      imageOrigin: imageScan.imageOrigin,
+      imageOriginScore: imageScan.imageOriginScore,
       imageScene: imageScan.imageScene,
       imageDepartmentHint: imageScan.imageDepartmentHint,
       imageIssueHint: imageScan.imageIssueHint,
       imageNotes: imageScan.imageNotes,
+      imageWarnings: imageScan.imageWarnings,
     };
   } catch {
     return heuristic;

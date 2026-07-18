@@ -17,7 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { InfrastructureReport, ReportStatus } from "@/types";
+import type { InfrastructureReport, ReportStatus, SessionUser } from "@/types";
+import { cacheReport, getCachedReport } from "@/utils/report-cache";
 import { statusLabel } from "@/utils/status";
 
 type NearbyReport = InfrastructureReport & { distanceKm: number };
@@ -72,30 +73,76 @@ function buildComments(report: InfrastructureReport): MockComment[] {
 
 export default function CitizenReportDetailPage() {
   const params = useParams<{ id: string }>();
+  const reportId = decodeURIComponent(String(params?.id ?? "")).trim();
   const [report, setReport] = useState<InfrastructureReport | null>(null);
   const [nearby, setNearby] = useState<NearbyReport[]>([]);
+  const [alternatives, setAlternatives] = useState<InfrastructureReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [fromCache, setFromCache] = useState(false);
 
   useEffect(() => {
     let active = true;
 
     async function load() {
+      if (!reportId || reportId === "undefined" || reportId === "null") {
+        setLoading(false);
+        setError("Missing report id");
+        return;
+      }
+
       setLoading(true);
       setError(null);
+      setFromCache(false);
       try {
-        const res = await fetch(`/api/reports/${params.id}`, { cache: "no-store" });
+        const res = await fetch(`/api/reports/${encodeURIComponent(reportId)}`, {
+          cache: "no-store",
+        });
         const json = (await res.json()) as {
           success: boolean;
           message?: string;
           data?: { report: InfrastructureReport; nearby: NearbyReport[] };
         };
-        if (!res.ok || !json.success || !json.data) {
-          throw new Error(json.message || "Report not found");
+        if (res.ok && json.success && json.data?.report) {
+          if (!active) return;
+          cacheReport(json.data.report);
+          setReport(json.data.report);
+          setNearby(json.data.nearby ?? []);
+          return;
         }
-        if (!active) return;
-        setReport(json.data.report);
-        setNearby(json.data.nearby);
+
+        // Fallback: session cache (survives brief API/store races after submit)
+        const cached = getCachedReport(reportId);
+        if (cached) {
+          if (!active) return;
+          setReport(cached);
+          setNearby([]);
+          setFromCache(true);
+          setError(null);
+          return;
+        }
+
+        // Recovery: show this citizen's other tickets instead of a dead end
+        const meRes = await fetch("/api/auth/me", { cache: "no-store" });
+        const meJson = (await meRes.json()) as {
+          success?: boolean;
+          data?: { user: SessionUser };
+        };
+        if (meJson.success && meJson.data?.user?.id) {
+          const listRes = await fetch(
+            `/api/reports?citizenId=${encodeURIComponent(meJson.data.user.id)}`,
+            { cache: "no-store" }
+          );
+          const listJson = (await listRes.json()) as {
+            success?: boolean;
+            data?: { reports: InfrastructureReport[] };
+          };
+          if (active) {
+            setAlternatives(listJson.data?.reports?.slice(0, 6) ?? []);
+          }
+        }
+
+        throw new Error(json.message || "Report not found");
       } catch (err) {
         if (active) {
           setError(err instanceof Error ? err.message : "Failed to load report");
@@ -109,7 +156,7 @@ export default function CitizenReportDetailPage() {
     return () => {
       active = false;
     };
-  }, [params.id]);
+  }, [reportId]);
 
   const comments = useMemo(
     () => (report ? buildComments(report) : []),
@@ -128,15 +175,40 @@ export default function CitizenReportDetailPage() {
 
   if (error || !report) {
     return (
-      <EmptyState
-        title="Report unavailable"
-        description={error ?? "This ticket could not be loaded."}
-        action={
-          <Link href="/citizen/reports">
-            <Button variant="outline">Back to my reports</Button>
-          </Link>
-        }
-      />
+      <div className="space-y-4">
+        <EmptyState
+          title="Report unavailable"
+          description={
+            alternatives.length
+              ? "That ticket id is no longer in the live queue (demo store may have refreshed). Open one of your current reports below."
+              : (error ?? "This ticket could not be loaded.")
+          }
+          action={
+            <Link href="/citizen/reports">
+              <Button variant="outline">Back to my reports</Button>
+            </Link>
+          }
+        />
+        {alternatives.length ? (
+          <div className="glass-card space-y-2 p-4">
+            <p className="text-sm font-semibold text-[var(--foreground)]">
+              Your current tickets
+            </p>
+            {alternatives.map((item) => (
+              <Link
+                key={item.id}
+                href={`/citizen/reports/${item.id}`}
+                className="block rounded-2xl border border-[var(--border)] px-3 py-3 text-sm transition hover:border-[var(--brand)]"
+              >
+                <span className="font-semibold">{item.title}</span>
+                <span className="mt-0.5 block text-xs text-[var(--muted)]">
+                  {item.id} · {statusLabel(item.status)}
+                </span>
+              </Link>
+            ))}
+          </div>
+        ) : null}
+      </div>
     );
   }
 
@@ -164,6 +236,12 @@ export default function CitizenReportDetailPage() {
 
   return (
     <div className="space-y-6">
+      {fromCache ? (
+        <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+          Showing a cached copy while the server store catches up. Refresh in a
+          moment if status looks stale.
+        </p>
+      ) : null}
       <section className="relative overflow-hidden rounded-[28px] border border-[var(--border)] shadow-[var(--shadow)]">
         <div className="absolute inset-0">
           <Image

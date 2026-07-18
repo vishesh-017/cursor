@@ -36,6 +36,10 @@ const visualSignalsSchema = z
     skinScore: z.number(),
     skyScore: z.number(),
     edgeEnergy: z.number(),
+    noiseScore: z.number().optional(),
+    smoothScore: z.number().optional(),
+    saturationMean: z.number().optional(),
+    paletteEntropy: z.number().optional(),
     fileName: z.string().optional(),
   })
   .optional();
@@ -62,6 +66,10 @@ const aiSchema = z.object({
   standardsNote: z.string().optional(),
   imageRelevant: z.enum(["relevant", "not_relevant", "uncertain"]).optional(),
   imageRelevanceScore: z.number().min(0).max(1).optional(),
+  imageOrigin: z
+    .enum(["likely_photo", "possibly_ai_generated", "uncertain"])
+    .optional(),
+  imageOriginScore: z.number().min(0).max(1).optional(),
   imageScene: z.string().optional(),
   imageDepartmentHint: z
     .enum([
@@ -75,6 +83,7 @@ const aiSchema = z.object({
     .optional(),
   imageIssueHint: z.string().optional(),
   imageNotes: z.string().optional(),
+  imageWarnings: z.array(z.string()).optional(),
 });
 
 const createSchema = z.object({

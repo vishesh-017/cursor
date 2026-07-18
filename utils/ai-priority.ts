@@ -26,6 +26,8 @@ export function aiQueueScore(report: InfrastructureReport): number {
   else if (ai.authenticity === "uncertain") score -= 12;
   else score += (ai.authenticityScore ?? 0.5) * 8;
 
+  if (ai.imageOrigin === "possibly_ai_generated") score -= 24;
+  else if (ai.imageOrigin === "uncertain") score -= 10;
   if (ai.imageRelevant === "not_relevant") score -= 18;
   else if (ai.imageRelevant === "relevant")
     score += (ai.imageRelevanceScore ?? 0.5) * 6;

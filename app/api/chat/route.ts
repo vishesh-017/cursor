@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { buildChatQuery, tryLocalFaq, type ChatMessage } from "@/lib/ai/chat";
+import {
+  buildChatQuery,
+  buildLiveContextSnippet,
+  tryLiveDataAnswer,
+  tryLocalFaq,
+  type ChatMessage,
+} from "@/lib/ai/chat";
 import { exa } from "@/lib/ai/exa";
 import { fail, fromError, ok } from "@/lib/api/response";
 import { getSession } from "@/lib/auth/session";
@@ -33,6 +39,20 @@ export async function POST(request: Request) {
     const message = parsed.data.message.trim();
     const history = (parsed.data.history ?? []) as ChatMessage[];
 
+    // 1) Live Urbanexus tickets (my status, worst roads, …)
+    const live = await tryLiveDataAnswer({ message, session });
+    if (live) {
+      return ok(
+        {
+          answer: live,
+          citations: [] as Array<{ title?: string; url?: string }>,
+          source: "live" as const,
+        },
+        "Chat reply ready"
+      );
+    }
+
+    // 2) In-app FAQ (how to file, demo login, …) — not "my status"
     const local = tryLocalFaq(message);
     if (local) {
       return ok(
@@ -45,11 +65,15 @@ export async function POST(request: Request) {
       );
     }
 
+    // 3) Exa web answer, grounded with a live data snippet
+    const liveContext = await buildLiveContextSnippet(session);
     const query = buildChatQuery({
       message,
       history,
       role: session?.role,
       ward: session?.ward,
+      name: session?.name?.split(" ")[0] ?? null,
+      liveContext,
     });
 
     try {
@@ -70,8 +94,15 @@ export async function POST(request: Request) {
       if (msg.includes("EXA_API_KEY")) {
         return ok(
           {
-            answer:
-              "I can still help with Urbanexus basics offline. Ask how to file a report, demo login, ticket statuses, City Map, or AI Lab — or add EXA_API_KEY for full civic Q&A.",
+            answer: [
+              session
+                ? `Hi ${session.name.split(" ")[0]} — Exa is offline, but I can still use Urbanexus data.`
+                : "Exa is offline, but I can still help with Urbanexus basics.",
+              "",
+              liveContext,
+              "",
+              'Try asking: "my report status" or "which ward has the worst roads".',
+            ].join("\n"),
             citations: [],
             source: "fallback" as const,
           },

@@ -8,6 +8,10 @@ import {
   users,
   wards,
 } from "@/data/seed";
+import {
+  loadPersistedStore,
+  savePersistedStore,
+} from "@/services/memory-persist";
 import type {
   DepartmentRankingEntry,
   InfrastructureReport,
@@ -33,25 +37,49 @@ declare global {
   var __urbanexusStore: UrbanexusStore | undefined;
 }
 
+function seedUsers(): UserProfile[] {
+  return structuredClone(users).map((u) => ({
+    ...u,
+    accountStatus: u.accountStatus ?? "active",
+    flagCount: u.flagCount ?? 0,
+  }));
+}
+
+function persist(store: UrbanexusStore) {
+  savePersistedStore(store);
+}
+
 function getStore(): UrbanexusStore {
   if (!globalThis.__urbanexusStore) {
-    globalThis.__urbanexusStore = {
-      reports: structuredClone(seedReports),
-      notifications: structuredClone(seedNotifications),
-      users: structuredClone(users).map((u) => ({
-        ...u,
-        accountStatus: u.accountStatus ?? "active",
-        flagCount: u.flagCount ?? 0,
-      })),
-      moderationEvents: [],
-    };
+    const disk = loadPersistedStore();
+    if (disk?.reports?.length) {
+      // Merge seed tickets that are missing so demo IDs always resolve.
+      const byId = new Map(disk.reports.map((r) => [r.id, r]));
+      for (const seed of seedReports) {
+        if (!byId.has(seed.id)) byId.set(seed.id, structuredClone(seed));
+      }
+      globalThis.__urbanexusStore = {
+        reports: Array.from(byId.values()).sort(
+          (a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt)
+        ),
+        notifications: disk.notifications?.length
+          ? disk.notifications
+          : structuredClone(seedNotifications),
+        users: disk.users?.length ? disk.users : seedUsers(),
+        moderationEvents: disk.moderationEvents ?? [],
+      };
+    } else {
+      globalThis.__urbanexusStore = {
+        reports: structuredClone(seedReports),
+        notifications: structuredClone(seedNotifications),
+        users: seedUsers(),
+        moderationEvents: [],
+      };
+      persist(globalThis.__urbanexusStore);
+    }
   } else if (!globalThis.__urbanexusStore.users) {
     // Hot-reload older store shapes
-    globalThis.__urbanexusStore.users = structuredClone(users).map((u) => ({
-      ...u,
-      accountStatus: u.accountStatus ?? "active",
-      flagCount: u.flagCount ?? 0,
-    }));
+    globalThis.__urbanexusStore.users = seedUsers();
     globalThis.__urbanexusStore.moderationEvents =
       globalThis.__urbanexusStore.moderationEvents ?? [];
   }
@@ -139,6 +167,7 @@ export function memoryModerateUser(input: {
     href: "/citizen/profile",
   });
 
+  persist(store);
   return { ...user };
 }
 
@@ -196,7 +225,13 @@ export function memoryListReports(filters?: {
 }
 
 export function memoryGetReportById(id: string) {
-  return getStore().reports.find((r) => r.id === id);
+  const normalized = decodeURIComponent(String(id ?? "")).trim();
+  if (!normalized) return undefined;
+  const store = getStore();
+  return (
+    store.reports.find((r) => r.id === normalized) ??
+    store.reports.find((r) => r.id.toLowerCase() === normalized.toLowerCase())
+  );
 }
 
 export function memoryCreateReport(
@@ -242,6 +277,7 @@ export function memoryCreateReport(
     href: `/citizen/reports/${report.id}`,
   });
 
+  persist(store);
   return report;
 }
 
@@ -276,7 +312,8 @@ export function memoryUpdateReport(
     });
   }
 
-  getStore().notifications.unshift({
+  const store = getStore();
+  store.notifications.unshift({
     id: `n-${Date.now()}`,
     userId: report.citizenId,
     title: "Report update",
@@ -286,6 +323,7 @@ export function memoryUpdateReport(
     href: `/citizen/reports/${report.id}`,
   });
 
+  persist(store);
   return report;
 }
 

@@ -28,6 +28,10 @@ const aiSchema = z.object({
   standardsNote: z.string().optional(),
   imageRelevant: z.enum(["relevant", "not_relevant", "uncertain"]).optional(),
   imageRelevanceScore: z.number().optional(),
+  imageOrigin: z
+    .enum(["likely_photo", "possibly_ai_generated", "uncertain"])
+    .optional(),
+  imageOriginScore: z.number().optional(),
   imageScene: z.string().optional(),
   imageDepartmentHint: z
     .enum([
@@ -41,6 +45,7 @@ const aiSchema = z.object({
     .optional(),
   imageIssueHint: z.string().optional(),
   imageNotes: z.string().optional(),
+  imageWarnings: z.array(z.string()).optional(),
 });
 
 const patchSchema = z.object({
@@ -75,7 +80,11 @@ type Params = { params: Promise<{ id: string }> };
 export async function GET(_request: Request, { params }: Params) {
   try {
     const session = await getSession();
-    const { id } = await params;
+    const { id: rawId } = await params;
+    const id = decodeURIComponent(String(rawId ?? "")).trim();
+    if (!id || id === "undefined" || id === "null") {
+      return fail("NOT_FOUND", "Report not found", 404);
+    }
     const report = await getReportById(id);
     if (!report) return fail("NOT_FOUND", "Report not found", 404);
 

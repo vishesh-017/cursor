@@ -108,6 +108,12 @@ export type AuthenticityVerdict = "likely_true" | "possibly_fake" | "uncertain";
 
 export type ImageRelevance = "relevant" | "not_relevant" | "uncertain";
 
+/** Whether the evidence photo looks like a real camera shot vs AI/synthetic. */
+export type ImageOriginVerdict =
+  | "likely_photo"
+  | "possibly_ai_generated"
+  | "uncertain";
+
 export interface AiAnalysis {
   detection: string;
   damageClass: string;
@@ -130,6 +136,10 @@ export interface AiAnalysis {
   imageRelevant?: ImageRelevance;
   /** Confidence that image relevance verdict is correct (0–1). */
   imageRelevanceScore?: number;
+  /** Real phone photo vs possible AI / synthetic image. */
+  imageOrigin?: ImageOriginVerdict;
+  /** Confidence in the image-origin verdict (0–1). */
+  imageOriginScore?: number;
   /** Short scene label from image scan. */
   imageScene?: string;
   /** Department inferred from image scan. */
@@ -138,6 +148,8 @@ export interface AiAnalysis {
   imageIssueHint?: string;
   /** Officer-facing notes from image scan. */
   imageNotes?: string;
+  /** Citizen/officer warnings (unrelated, AI-gen, mismatch). */
+  imageWarnings?: string[];
 }
 
 export interface InfrastructureReport {
