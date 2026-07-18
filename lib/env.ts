@@ -47,11 +47,21 @@ export function getSupabaseAnonKey(): string | undefined {
   return key?.trim() || undefined;
 }
 
+function nonEmpty(value: string | undefined): string | undefined {
+  const v = value?.trim();
+  if (!v || v === "undefined" || v === "null") return undefined;
+  return v;
+}
+
 /** Secret (`sb_secret_…`) or legacy service_role JWT — server only. */
 export function getSupabaseServiceKey(): string | undefined {
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
-  return key?.trim() || undefined;
+  return (
+    nonEmpty(process.env.SUPABASE_SERVICE_ROLE_KEY) ||
+    nonEmpty(process.env.SUPABASE_SECRET_KEY) ||
+    // Common Vercel naming mistakes
+    nonEmpty(process.env.SUPABASE_SERVICE_KEY) ||
+    nonEmpty(process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY)
+  );
 }
 
 export function requireExaApiKey(): string {
@@ -97,5 +107,22 @@ export function getEnvStatus() {
     supabaseService,
     /** All three Supabase keys present → Postgres store is active. */
     database: supabaseUrl && supabaseAnon && supabaseService,
+    /** Which raw env names are present (no secret values). */
+    present: {
+      NEXT_PUBLIC_SUPABASE_URL: Boolean(
+        nonEmpty(process.env.NEXT_PUBLIC_SUPABASE_URL)
+      ),
+      SUPABASE_URL: Boolean(nonEmpty(process.env.SUPABASE_URL)),
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: Boolean(
+        nonEmpty(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+      ),
+      SUPABASE_PUBLISHABLE_KEY: Boolean(
+        nonEmpty(process.env.SUPABASE_PUBLISHABLE_KEY)
+      ),
+      SUPABASE_SERVICE_ROLE_KEY: Boolean(
+        nonEmpty(process.env.SUPABASE_SERVICE_ROLE_KEY)
+      ),
+      SUPABASE_SECRET_KEY: Boolean(nonEmpty(process.env.SUPABASE_SECRET_KEY)),
+    },
   };
 }

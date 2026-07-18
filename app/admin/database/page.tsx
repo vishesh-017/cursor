@@ -31,6 +31,14 @@ type StatusData = {
     supabaseAnon: boolean;
     supabaseService: boolean;
     database: boolean;
+    present?: {
+      NEXT_PUBLIC_SUPABASE_URL: boolean;
+      SUPABASE_URL: boolean;
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: boolean;
+      SUPABASE_PUBLISHABLE_KEY: boolean;
+      SUPABASE_SERVICE_ROLE_KEY: boolean;
+      SUPABASE_SECRET_KEY: boolean;
+    };
   };
 };
 
@@ -190,9 +198,31 @@ export default function AdminDatabasePage() {
 
         <ul className="mt-5 grid gap-2 text-sm sm:grid-cols-3">
           <EnvChip ok={status?.env.supabaseUrl} label="SUPABASE_URL" />
-          <EnvChip ok={status?.env.supabaseAnon} label="ANON_KEY" />
-          <EnvChip ok={status?.env.supabaseService} label="SERVICE_ROLE" />
+          <EnvChip ok={status?.env.supabaseAnon} label="ANON / PUBLISHABLE" />
+          <EnvChip
+            ok={status?.env.supabaseService}
+            label="SECRET / SERVICE_ROLE"
+          />
         </ul>
+
+        {status && !status.env.supabaseService ? (
+          <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <p className="font-semibold">Secret key not loaded on this server</p>
+            <p className="mt-1 text-amber-900/90">
+              In Vercel → Project → Settings → Environment Variables, add{" "}
+              <code className="rounded bg-white/80 px-1">SUPABASE_SECRET_KEY</code>{" "}
+              <em>and</em>{" "}
+              <code className="rounded bg-white/80 px-1">
+                SUPABASE_SERVICE_ROLE_KEY
+              </code>{" "}
+              with the same <code className="rounded bg-white/80 px-1">sb_secret_…</code>{" "}
+              value (Production + Preview). Then <strong>Redeploy</strong>.
+              Locally: put it in{" "}
+              <code className="rounded bg-white/80 px-1">.env.local</code> and
+              restart <code className="rounded bg-white/80 px-1">npm run dev</code>.
+            </p>
+          </div>
+        ) : null}
       </section>
 
       <section className="space-y-4 rounded-3xl border border-[var(--border)] bg-[var(--surface-solid)] p-5">
