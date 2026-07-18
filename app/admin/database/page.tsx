@@ -265,15 +265,21 @@ export default function AdminDatabasePage() {
                 Run the SQL schema once
               </p>
               <p className="mt-1">
-                In Supabase → SQL Editor, paste and run{" "}
+                Open the{" "}
+                <a
+                  href="https://supabase.com/dashboard/project/kgsmdprurziemjmkouha/sql/new"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-[var(--accent)] underline-offset-2 hover:underline"
+                >
+                  SQL Editor
+                </a>
+                , paste all of{" "}
                 <code className="rounded bg-black/5 px-1.5 py-0.5">
-                  supabase/migrations/001_urbanexus.sql
-                </code>{" "}
-                (and{" "}
-                <code className="rounded bg-black/5 px-1.5 py-0.5">
-                  002_user_moderation.sql
-                </code>{" "}
-                if you already had an older schema).
+                  supabase/setup_all.sql
+                </code>
+                , and click Run. (Direct DB from this laptop is IPv6-only, so
+                SQL Editor is the reliable path.)
               </p>
             </div>
           </li>
