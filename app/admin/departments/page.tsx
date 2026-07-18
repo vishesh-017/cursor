@@ -104,10 +104,10 @@ export default function AdminDepartmentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+        <h1 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">
           Departments
         </h1>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-[var(--muted)]">
           AMC departmental desks — Roads & Buildings, Water Supply, Drainage,
           Electrical, Sanitation, and Town Planning.
         </p>
@@ -164,21 +164,21 @@ export default function AdminDepartmentsPage() {
               <CardContent className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-slate-500">Seed open</p>
-                  <p className="text-xl font-semibold text-slate-900">
+                  <p className="text-xl font-semibold text-[var(--foreground)]">
                     {dept.openIssues}
                   </p>
                 </div>
                 <div>
                   <p className="text-slate-500">Live open</p>
-                  <p className="text-xl font-semibold text-slate-900">{liveOpen}</p>
+                  <p className="text-xl font-semibold text-[var(--foreground)]">{liveOpen}</p>
                 </div>
                 <div>
                   <p className="text-slate-500">Resolved</p>
-                  <p className="font-semibold text-slate-900">{dept.resolvedIssues}</p>
+                  <p className="font-semibold text-[var(--foreground)]">{dept.resolvedIssues}</p>
                 </div>
                 <div>
                   <p className="text-slate-500">Avg resolution</p>
-                  <p className="font-semibold text-slate-900">
+                  <p className="font-semibold text-[var(--foreground)]">
                     {dept.avgResolutionHours}h
                   </p>
                 </div>

@@ -156,6 +156,12 @@ export default function CitizenDashboardPage() {
                   Nearby map
                 </Button>
               </Link>
+              <Link href="/ai">
+                <Button variant="outline" className="rounded-2xl border-white/20 bg-white/5 text-white hover:bg-white/10">
+                  <Sparkles className="h-4 w-4" />
+                  AI Lab
+                </Button>
+              </Link>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">

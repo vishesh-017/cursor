@@ -23,6 +23,7 @@ import {
   Map,
   MapPinned,
   Menu,
+  MessageCircle,
   Moon,
   PlusCircle,
   Search,
@@ -65,6 +66,7 @@ const iconMap: Record<string, LucideIcon> = {
   Building2,
   Users,
   Sparkles,
+  MessageCircle,
 };
 
 export function resolveNavIcon(name: string): LucideIcon {

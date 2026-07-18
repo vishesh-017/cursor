@@ -7,6 +7,7 @@ import type {
   AiAnalysis,
   AuthenticityVerdict,
   DepartmentId,
+  ImageRelevance,
   Priority,
 } from "@/types";
 
@@ -35,6 +36,34 @@ function scoreToPriority(score: number): Priority {
   return "low";
 }
 
+function looksGibberish(value: string): boolean {
+  const text = value.trim().toLowerCase();
+  if (!text) return true;
+  const letters = text.replace(/[^a-z]/g, "");
+  if (letters.length < 6) return true;
+  const vowels = (letters.match(/[aeiou]/g) || []).length;
+  const vowelRatio = vowels / letters.length;
+  if (vowelRatio < 0.22) return true;
+  if (
+    /asdf|qwer|zxcv|hjkl|mhvb|frgh|dummy|test123|aaaa|xxxx/i.test(text)
+  ) {
+    return true;
+  }
+  const words = text.split(/\s+/).filter((w) => w.replace(/[^a-z]/g, "").length > 1);
+  if (words.length <= 2 && vowelRatio < 0.3 && letters.length >= 8) return true;
+  // Dense consonant smash without real civic vocabulary
+  if (
+    !/\b(road|pothole|drain|water|light|waste|ward|near|street|bridge|flood|leak|manhole|footpath)\b/i.test(
+      text
+    ) &&
+    vowelRatio < 0.28 &&
+    letters.length >= 10
+  ) {
+    return true;
+  }
+  return false;
+}
+
 function inferAuthenticity(input: {
   title: string;
   description: string;
@@ -58,6 +87,13 @@ function inferAuthenticity(input: {
   ];
   if (spamHints.some((h) => text.includes(h))) {
     return { authenticity: "possibly_fake", authenticityScore: 0.88 };
+  }
+
+  if (looksGibberish(input.title) || looksGibberish(input.description)) {
+    return {
+      authenticity: "possibly_fake",
+      authenticityScore: 0.9,
+    };
   }
 
   if (input.description.trim().length < 25) {
@@ -215,10 +251,15 @@ function confidenceFromSignals(input: {
   authenticityScore: number;
   authenticity: AuthenticityVerdict;
   severity: Priority;
+  imageRelevant?: ImageRelevance;
+  imageRelevanceScore?: number;
 }): number {
   let confidence = 0.62 + input.authenticityScore * 0.25;
   if (input.description.trim().length >= 80) confidence += 0.06;
   if (input.description.trim().length < 30) confidence -= 0.1;
+  if (looksGibberish(input.title) || looksGibberish(input.description)) {
+    confidence = Math.min(confidence, 0.38);
+  }
   if (/\d|sg highway|brts|maninagar|cg road|vastrapur|thaltej/i.test(
     `${input.title} ${input.description}`
   )) {
@@ -227,9 +268,17 @@ function confidenceFromSignals(input: {
   if (input.severity === "critical" || input.severity === "low") {
     confidence += 0.03;
   }
-  if (input.authenticity === "possibly_fake") confidence = Math.min(confidence, 0.58);
+  if (input.authenticity === "possibly_fake") confidence = Math.min(confidence, 0.42);
   if (input.authenticity === "uncertain") confidence -= 0.08;
-  return Number(Math.max(0.4, Math.min(0.96, confidence)).toFixed(2));
+  if (input.imageRelevant === "not_relevant") {
+    confidence = Math.min(confidence, 0.4);
+  } else if (input.imageRelevant === "uncertain") {
+    confidence = Math.min(confidence, 0.62);
+  }
+  if (typeof input.imageRelevanceScore === "number") {
+    confidence = confidence * 0.7 + input.imageRelevanceScore * 0.3;
+  }
+  return Number(Math.max(0.22, Math.min(0.96, confidence)).toFixed(2));
 }
 
 export function fallbackAnalysis(input: {
@@ -257,6 +306,8 @@ export function fallbackAnalysis(input: {
     authenticityScore: authenticity.authenticityScore,
     authenticity: authenticity.authenticity,
     severity: base.severity,
+    imageRelevant: scan?.imageRelevant,
+    imageRelevanceScore: scan?.imageRelevanceScore,
   });
 
   return {
@@ -496,30 +547,43 @@ export async function analyzeInfrastructure(input: {
         localAuth.authenticityScore * 0.35
       ).toFixed(2)
     );
+    if (localAuth.authenticity === "possibly_fake") {
+      blendedAuthScore = Number(Math.min(blendedAuthScore, 0.35).toFixed(2));
+    }
     if (imageScan.imageRelevant === "not_relevant") {
-      blendedAuthScore = Number(Math.min(blendedAuthScore, 0.48).toFixed(2));
+      blendedAuthScore = Number(Math.min(blendedAuthScore, 0.42).toFixed(2));
     }
     const modelConfidence = Math.min(
       0.99,
-      Math.max(0.35, confidencePct / 100)
+      Math.max(0.22, confidencePct / 100)
     );
-    const blendedConfidence = Number(
+    let blendedConfidence = Number(
       (
-        modelConfidence * 0.7 +
+        modelConfidence * 0.45 +
         confidenceFromSignals({
           title: input.title,
           description: input.description,
           authenticityScore: blendedAuthScore,
           authenticity:
-            authenticity === "likely_true" &&
             localAuth.authenticity === "possibly_fake"
-              ? "uncertain"
-              : authenticity,
+              ? "possibly_fake"
+              : authenticity === "likely_true" &&
+                  localAuth.authenticity === "uncertain"
+                ? "uncertain"
+                : authenticity,
           severity: suggestedPriority,
+          imageRelevant: imageScan.imageRelevant,
+          imageRelevanceScore: imageScan.imageRelevanceScore,
         }) *
-          0.3
+          0.55
       ).toFixed(2)
     );
+    if (localAuth.authenticity === "possibly_fake") {
+      blendedConfidence = Math.min(blendedConfidence, 0.4);
+    }
+    if (imageScan.imageRelevant === "not_relevant") {
+      blendedConfidence = Math.min(blendedConfidence, 0.38);
+    }
     const alignedScore = priorityToScore(suggestedPriority);
     const finalPriorityScore = Math.min(
       100,
@@ -530,10 +594,9 @@ export async function analyzeInfrastructure(input: {
     );
 
     const authenticityFinal =
-      imageScan.imageRelevant === "not_relevant"
-        ? "uncertain"
-        : authenticity === "likely_true" &&
-            localAuth.authenticity === "possibly_fake"
+      localAuth.authenticity === "possibly_fake"
+        ? "possibly_fake"
+        : imageScan.imageRelevant === "not_relevant"
           ? "uncertain"
           : authenticity;
 

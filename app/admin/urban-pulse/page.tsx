@@ -72,10 +72,10 @@ export default function AdminUrbanPulsePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+        <h1 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">
           Urban Pulse
         </h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-600">
+        <p className="mt-2 max-w-2xl text-sm text-[var(--muted)]">
           Composite city vitality index for Ahmedabad — blending infrastructure
           health, department efficiency, and citizen participation.
         </p>

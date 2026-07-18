@@ -269,10 +269,10 @@ export default function AdminReportDetailPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700">
             {report.id}
           </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-[var(--foreground)]">
             {report.title}
           </h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-[var(--muted)]">
             Filed by {report.citizenName} · {report.ward} · {report.address}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -293,7 +293,7 @@ export default function AdminReportDetailPage() {
           <CardTitle>Application status</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-[var(--muted)]">
             Move this ticket through the AMC workflow. Citizens see these updates on
             their report page.
           </p>
@@ -332,20 +332,20 @@ export default function AdminReportDetailPage() {
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
                     AI image scan
                   </p>
-                  <p className="mt-1 font-semibold capitalize text-slate-900">
+                  <p className="mt-1 font-semibold capitalize text-[var(--foreground)]">
                     {report.ai.imageRelevant.replace("_", " ")}
                     {typeof report.ai.imageRelevanceScore === "number"
                       ? ` · ${Math.round(report.ai.imageRelevanceScore * 100)}%`
                       : ""}
                   </p>
-                  <p className="mt-1 text-slate-600">
+                  <p className="mt-1 text-[var(--muted)]">
                     {report.ai.imageScene}
                     {report.ai.imageDepartmentHint
                       ? ` · dept ${report.ai.imageDepartmentHint.replace("-", " ")}`
                       : ""}
                   </p>
                   {report.ai.imageIssueHint ? (
-                    <p className="mt-1 text-slate-600">{report.ai.imageIssueHint}</p>
+                    <p className="mt-1 text-[var(--muted)]">{report.ai.imageIssueHint}</p>
                   ) : null}
                   {report.ai.imageNotes ? (
                     <p className="mt-1 text-xs text-[var(--muted)]">{report.ai.imageNotes}</p>
@@ -359,14 +359,14 @@ export default function AdminReportDetailPage() {
             <CardHeader>
               <CardTitle>Details</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm text-slate-700">
+            <CardContent className="space-y-3 text-sm text-[var(--muted)]">
               <p>{report.description}</p>
               <p>
-                <span className="font-medium text-slate-900">Coordinates:</span>{" "}
+                <span className="font-medium text-[var(--foreground)]">Coordinates:</span>{" "}
                 {report.latitude.toFixed(4)}, {report.longitude.toFixed(4)}
               </p>
               <p>
-                <span className="font-medium text-slate-900">Updated:</span>{" "}
+                <span className="font-medium text-[var(--foreground)]">Updated:</span>{" "}
                 {new Date(report.updatedAt).toLocaleString("en-IN")}
               </p>
             </CardContent>
@@ -379,11 +379,11 @@ export default function AdminReportDetailPage() {
             <CardContent className="space-y-4">
               {report.timeline.map((event) => (
                 <div key={event.id} className="border-l-2 border-teal-700 pl-4">
-                  <p className="text-sm font-semibold text-slate-900">{event.title}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-sm font-semibold text-[var(--foreground)]">{event.title}</p>
+                  <p className="text-xs text-[var(--muted)]">
                     {new Date(event.at).toLocaleString("en-IN")} · {event.actor}
                   </p>
-                  <p className="mt-1 text-sm text-slate-600">{event.description}</p>
+                  <p className="mt-1 text-sm text-[var(--muted)]">{event.description}</p>
                 </div>
               ))}
             </CardContent>
@@ -425,7 +425,7 @@ export default function AdminReportDetailPage() {
               <Label htmlFor="status">Status</Label>
               <select
                 id="status"
-                className="flex h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
+                className="flex h-11 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface-solid)] px-3 text-sm text-[var(--foreground)]"
                 value={status}
                 onChange={(e) => setStatus(e.target.value as ReportStatus)}
               >
@@ -440,7 +440,7 @@ export default function AdminReportDetailPage() {
               <Label htmlFor="priority">Priority</Label>
               <select
                 id="priority"
-                className="flex h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
+                className="flex h-11 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface-solid)] px-3 text-sm text-[var(--foreground)]"
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as Priority)}
               >
@@ -455,7 +455,7 @@ export default function AdminReportDetailPage() {
               <Label htmlFor="dept">Department</Label>
               <select
                 id="dept"
-                className="flex h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
+                className="flex h-11 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface-solid)] px-3 text-sm text-[var(--foreground)]"
                 value={departmentId}
                 onChange={(e) => setDepartmentId(e.target.value as DepartmentId)}
               >

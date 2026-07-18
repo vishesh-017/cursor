@@ -41,16 +41,16 @@ export default function HomePage() {
             Sign in to portal
           </Link>
           <Link
-            href="/map"
+            href="/ai"
             className="inline-flex h-12 items-center rounded-2xl border border-white/30 bg-white/10 px-6 text-sm font-semibold text-white backdrop-blur hover:bg-white/20"
           >
-            Open GIS map
+            Open AI Lab
           </Link>
           <Link
-            href="/admin/dashboard"
+            href="/map"
             className="inline-flex h-12 items-center rounded-2xl px-5 text-sm font-medium text-teal-100 hover:text-white"
           >
-            AMC command center →
+            GIS map →
           </Link>
         </div>
       </div>

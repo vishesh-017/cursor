@@ -147,7 +147,20 @@ export default function CitizenReportDetailPage() {
     8,
     Math.round(((Math.max(stepIndex, 0) + 1) / STATUS_STEPS.length) * 100)
   );
-  const heroSrc = report.imageUrl || ROAD_HERO;
+  // Don't use selfie / unrelated uploads as the ticket hero — that looks like
+  // the AI "trusted" a person photo. Keep evidence in the gallery instead.
+  const scene = (report.ai?.imageScene || "").toLowerCase();
+  const evidenceIsSitePhoto =
+    Boolean(report.imageUrl) &&
+    report.ai?.imageRelevant === "relevant" &&
+    !scene.includes("person") &&
+    !scene.includes("selfie");
+  const heroSrc = evidenceIsSitePhoto ? report.imageUrl! : ROAD_HERO;
+  const photoWarning =
+    report.imageUrl &&
+    (report.ai?.imageRelevant === "not_relevant" ||
+      scene.includes("person") ||
+      scene.includes("selfie"));
 
   return (
     <div className="space-y-6">
@@ -155,7 +168,11 @@ export default function CitizenReportDetailPage() {
         <div className="absolute inset-0">
           <Image
             src={heroSrc}
-            alt={`Site context for ${report.title}`}
+            alt={
+              evidenceIsSitePhoto
+                ? `Site photo for ${report.title}`
+                : `Infrastructure context for ${report.title}`
+            }
             fill
             className="object-cover"
             sizes="100vw"
@@ -189,6 +206,9 @@ export default function CitizenReportDetailPage() {
               {statusLabel(report.status)}
             </Badge>
             <Badge tone="brand">{report.departmentId.replace("-", " ")}</Badge>
+            {photoWarning ? (
+              <Badge tone="warning">Uploaded photo not used as evidence</Badge>
+            ) : null}
           </div>
         </div>
       </section>

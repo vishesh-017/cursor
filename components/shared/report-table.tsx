@@ -25,9 +25,10 @@ export function ReportTable({
   onStatusChange?: (id: string, status: ReportStatus) => void;
 }) {
   return (
-    <div className="overflow-x-auto rounded-[18px] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow)] backdrop-blur">
+    <div className="overflow-hidden rounded-[22px] border border-[var(--border)] bg-[var(--surface-solid)] shadow-[var(--shadow)]">
+      <div className="overflow-x-auto">
       <table className="min-w-full text-left text-sm">
-        <thead className="bg-black/[0.03] text-xs uppercase tracking-[0.14em] text-[var(--muted)] dark:bg-white/[0.04]">
+        <thead className="bg-[var(--brand-soft)]/50 text-[10px] uppercase tracking-[0.14em] text-[var(--muted)]">
           <tr>
             <th className="px-4 py-3.5 font-semibold">Photo</th>
             <th className="px-4 py-3.5 font-semibold">Report</th>
@@ -44,7 +45,7 @@ export function ReportTable({
           {reports.map((report) => (
             <tr
               key={report.id}
-              className="border-t border-[var(--border)] transition hover:bg-[var(--brand-soft)]/40"
+              className="border-t border-[var(--border)] text-[var(--foreground)] transition hover:bg-[var(--brand-soft)]/35"
             >
               <td className="px-4 py-3.5">
                 {report.imageUrl || report.imageUrls?.[0] ? (
@@ -110,6 +111,7 @@ export function ReportTable({
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

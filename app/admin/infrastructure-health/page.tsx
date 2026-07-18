@@ -125,10 +125,10 @@ export default function AdminInfrastructureHealthPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+        <h1 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">
           Infrastructure health
         </h1>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-[var(--muted)]">
           Asset-condition view for roads, drainage, lighting, and water networks
           across Ahmedabad wards.
         </p>
@@ -197,7 +197,7 @@ export default function AdminInfrastructureHealthPage() {
                 className="rounded-lg border border-slate-200 bg-white/70 p-3"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-semibold text-slate-900">{report.title}</p>
+                  <p className="text-sm font-semibold text-[var(--foreground)]">{report.title}</p>
                   <Badge tone={priorityTone(report.priority)}>{report.priority}</Badge>
                 </div>
                 <p className="mt-1 text-xs text-slate-500">
@@ -222,7 +222,7 @@ export default function AdminInfrastructureHealthPage() {
                 className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-3"
               >
                 <div>
-                  <p className="font-medium text-slate-900">{ward.name}</p>
+                  <p className="font-medium text-[var(--foreground)]">{ward.name}</p>
                   <p className="text-xs text-slate-500">
                     {ward.zone} zone · {ward.openIssues} open
                   </p>

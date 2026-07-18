@@ -137,10 +137,10 @@ export default function AdminCitizensPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+        <h1 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">
           Citizens
         </h1>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-[var(--muted)]">
           Active civic reporters contributing infrastructure intelligence across
           Ahmedabad wards.
         </p>
@@ -192,18 +192,18 @@ export default function AdminCitizensPage() {
                 {citizens.map((citizen) => (
                   <tr key={citizen.id} className="border-t border-slate-100 hover:bg-slate-50/80">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-slate-900">{citizen.name}</p>
+                      <p className="font-medium text-[var(--foreground)]">{citizen.name}</p>
                       <p className="text-xs text-slate-500">{citizen.id}</p>
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{citizen.ward}</td>
+                    <td className="px-4 py-3 text-[var(--muted)]">{citizen.ward}</td>
                     <td className="px-4 py-3 font-semibold text-teal-800">
                       {citizen.points}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{citizen.reports}</td>
+                    <td className="px-4 py-3 text-[var(--muted)]">{citizen.reports}</td>
                     <td className="px-4 py-3">
                       <Badge tone="brand">{citizen.badges}</Badge>
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-4 py-3 text-[var(--muted)]">
                       {citizen.rank < 99 ? `#${citizen.rank}` : "—"}
                     </td>
                   </tr>

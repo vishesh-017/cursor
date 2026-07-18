@@ -87,10 +87,10 @@ export default function AdminPriorityPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+          <h1 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">
             Priority queue
           </h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-[var(--muted)]">
             Critical and high tickets needing immediate AMC desk action — monsoon
             flooding, arterial road failures, and safety outages.
           </p>
@@ -125,7 +125,7 @@ export default function AdminPriorityPage() {
                   className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white/80 p-4 transition hover:border-teal-300 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
-                    <p className="font-semibold text-slate-900">{report.title}</p>
+                    <p className="font-semibold text-[var(--foreground)]">{report.title}</p>
                     <p className="mt-1 text-xs text-slate-500">
                       {report.ward} · {report.departmentId} ·{" "}
                       {report.assignedTo ?? "Unassigned"}

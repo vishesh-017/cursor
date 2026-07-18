@@ -100,10 +100,10 @@ export default function AdminWardsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+        <h1 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">
           Ward performance
         </h1>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-[var(--muted)]">
           Compare health scores and live ticket load across West, East, Central,
           and South Ahmedabad wards.
         </p>
@@ -151,7 +151,7 @@ export default function AdminWardsPage() {
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm text-slate-600">
+            <CardContent className="space-y-2 text-sm text-[var(--muted)]">
               <p>Population: {ward.population.toLocaleString("en-IN")}</p>
               <p>Seed open issues: {ward.openIssues}</p>
               <p>Live open tickets: {ward.liveOpen}</p>

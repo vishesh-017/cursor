@@ -9,6 +9,8 @@ import { cn } from "@/utils/cn";
 const links = [
   { href: "/", label: "Home" },
   { href: "/map", label: "GIS Map" },
+  { href: "/ai", label: "AI Lab" },
+  { href: "/chat", label: "Nexus Chat" },
   { href: "/intel", label: "Exa Intel" },
   { href: "/login", label: "Sign in" },
 ];
@@ -24,7 +26,11 @@ export function SiteHeader() {
       setShellActive(true);
       return;
     }
-    if (pathname.startsWith("/map")) {
+    if (
+      pathname.startsWith("/map") ||
+      pathname.startsWith("/ai") ||
+      pathname.startsWith("/chat")
+    ) {
       let active = true;
       void fetch("/api/auth/me", { cache: "no-store" })
         .then((r) => r.json())

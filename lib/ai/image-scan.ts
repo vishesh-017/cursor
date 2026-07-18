@@ -72,7 +72,10 @@ export function heuristicImageScan(
   let issue = "Possible infrastructure defect";
 
   const blank = variance < 0.012 && edgeEnergy < 0.08;
-  const selfieLike = skinScore > 0.28 && asphaltScore < 0.12;
+  // Portrait / selfie: skin tones dominate and little road/asphalt texture
+  const selfieLike =
+    (skinScore > 0.18 && asphaltScore < 0.16) ||
+    (skinScore > 0.24 && asphaltScore < 0.22 && edgeEnergy < 0.22);
   const parkOnly = vegetationScore > 0.42 && asphaltScore < 0.1 && waterScore < 0.12;
   const darkUseless = brightness < 0.12 && edgeEnergy < 0.1;
 
