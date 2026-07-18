@@ -1,6 +1,6 @@
 # Urbanexus
 
-AI-powered Urban Infrastructure Intelligence Platform for **Ahmedabad Municipal Corporation (AMC)**.
+AI-powered Urban Infrastructure Intelligence Platform for **Ahmedabad Municipal Corporation (AMC) that help the citizen to share problem with main auth**.
 
 ## Stack
 
