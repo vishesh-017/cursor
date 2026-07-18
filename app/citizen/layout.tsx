@@ -3,15 +3,15 @@ import { AppShell } from "@/components/layout/app-shell";
 import { getSession } from "@/lib/auth/session";
 
 const nav = [
-  { href: "/citizen/dashboard", label: "Dashboard" },
-  { href: "/citizen/reports/new", label: "Report Issue" },
-  { href: "/citizen/reports", label: "My Reports" },
-  { href: "/citizen/rewards", label: "Rewards" },
-  { href: "/citizen/leaderboard", label: "Leaderboard" },
-  { href: "/citizen/notifications", label: "Notifications" },
-  { href: "/citizen/profile", label: "Profile" },
-  { href: "/citizen/settings", label: "Settings" },
-  { href: "/map", label: "Map" },
+  { href: "/citizen/dashboard", label: "Command Center", icon: "LayoutDashboard" },
+  { href: "/citizen/reports/new", label: "Report Issue", icon: "PlusCircle" },
+  { href: "/citizen/reports", label: "My Reports", icon: "FileText" },
+  { href: "/citizen/rewards", label: "Rewards", icon: "Award" },
+  { href: "/citizen/leaderboard", label: "Leaderboard", icon: "Trophy" },
+  { href: "/citizen/notifications", label: "Notifications", icon: "Bell" },
+  { href: "/citizen/profile", label: "Profile", icon: "UserRound" },
+  { href: "/citizen/settings", label: "Settings", icon: "Settings" },
+  { href: "/map", label: "City Map", icon: "Map" },
 ];
 
 export default async function CitizenLayout({

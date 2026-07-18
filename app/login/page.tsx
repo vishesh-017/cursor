@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Building2, MapPinned, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { SessionUser } from "@/types";
@@ -65,102 +67,146 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl items-center px-4 py-12 sm:px-6">
-      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute -left-20 top-10 h-72 w-72 rounded-full bg-teal-400/20 blur-3xl" />
-        <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-slate-400/20 blur-3xl" />
-      </div>
-
-      <div className="grid w-full gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="space-y-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-700">
-            Ahmedabad Municipal Corporation
-          </p>
-          <h1 className="max-w-xl text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
-            Sign in to Urbanexus
-          </h1>
-          <p className="max-w-lg text-base leading-relaxed text-slate-600">
-            Report potholes on SG Highway, track monsoon drainage tickets in
-            Maninagar, and help AMC crews prioritize ward-level infrastructure
-            work across Ahmedabad.
-          </p>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            {demos.map((demo) => (
-              <button
-                key={demo.email}
-                type="button"
-                onClick={() => {
-                  setEmail(demo.email);
-                  setPassword(demo.password);
-                  void signIn(demo.email, demo.password);
-                }}
-                className="glass-card rounded-xl p-4 text-left transition hover:border-teal-300 hover:shadow-md"
-              >
-                <p className="text-xs font-semibold uppercase tracking-wide text-teal-700">
-                  {demo.role} demo
-                </p>
-                <p className="mt-2 text-sm font-semibold text-slate-900">{demo.email}</p>
-                <p className="text-sm text-slate-500">{demo.password}</p>
-                <p className="mt-2 text-xs text-slate-500">{demo.note}</p>
-              </button>
-            ))}
+    <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden">
+      <div className="grid min-h-[calc(100vh-4rem)] lg:grid-cols-2">
+        <section className="relative hidden overflow-hidden lg:block">
+          <Image
+            src="https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=1600&q=80"
+            alt="Ahmedabad urban skyline"
+            fill
+            className="object-cover"
+            priority
+            sizes="50vw"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-950/90 via-slate-950/70 to-teal-950/50" />
+          <div className="relative z-10 flex h-full flex-col justify-between p-10 text-white">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
+                Ahmedabad Municipal Corporation
+              </p>
+              <h1 className="mt-4 font-display text-5xl font-semibold tracking-tight">
+                Urbanexus
+              </h1>
+              <p className="mt-4 max-w-md text-sm leading-relaxed text-slate-300">
+                Premium civic access for citizens and AMC officers — report SG Highway
+                potholes, track monsoon drainage, and command ward operations.
+              </p>
+            </div>
+            <div className="grid gap-3">
+              {[
+                {
+                  icon: MapPinned,
+                  title: "Enterprise GIS",
+                  body: "Ward boundaries, heatmaps, and issue clustering",
+                },
+                {
+                  icon: ShieldCheck,
+                  title: "Exa AI triage",
+                  body: "Confidence-scored routing to municipal desks",
+                },
+                {
+                  icon: Building2,
+                  title: "AMC command center",
+                  body: "Urban Pulse, priority queues, department load",
+                },
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur"
+                >
+                  <item.icon className="mt-0.5 h-5 w-5 text-teal-300" />
+                  <div>
+                    <p className="text-sm font-semibold">{item.title}</p>
+                    <p className="mt-1 text-xs text-slate-300">{item.body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
-        <Card className="glass-card border-slate-200/80 shadow-xl">
-          <CardHeader>
-            <CardTitle>Secure access</CardTitle>
-            <CardDescription>
-              Use demo credentials below or enter your AMC / citizen account.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form
-              className="space-y-4"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void signIn(email, password);
-              }}
-            >
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="username"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="you@example.com"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Signing in…" : "Sign in"}
-              </Button>
-            </form>
-
-            <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-600">
-              <p className="font-semibold text-slate-800">Demo credentials</p>
-              <p className="mt-2">
-                Citizen: aarav.sharma@gmail.com / demo1234
+        <section className="flex items-center justify-center px-4 py-12 sm:px-8">
+          <div className="w-full max-w-md space-y-6">
+            <div className="lg:hidden">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--brand)]">
+                Ahmedabad Municipal Corporation
               </p>
-              <p>Admin: admin@amc.gov.in / admin1234</p>
+              <h1 className="mt-2 font-display text-4xl font-semibold">Urbanexus</h1>
             </div>
-          </CardContent>
-        </Card>
+
+            <div className="glass-card p-6 shadow-[var(--shadow)] sm:p-8">
+              <h2 className="font-display text-2xl font-semibold">Secure access</h2>
+              <p className="mt-2 text-sm text-[var(--muted)]">
+                Use demo credentials below or enter your AMC / citizen account.
+              </p>
+
+              <form
+                className="mt-6 space-y-4"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void signIn(email, password);
+                }}
+              >
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    autoComplete="username"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="you@example.com"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="••••••••"
+                    required
+                  />
+                </div>
+                <Button type="submit" className="w-full rounded-2xl" disabled={loading}>
+                  {loading ? "Signing in…" : "Sign in"}
+                </Button>
+              </form>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                {demos.map((demo) => (
+                  <button
+                    key={demo.email}
+                    type="button"
+                    onClick={() => {
+                      setEmail(demo.email);
+                      setPassword(demo.password);
+                      void signIn(demo.email, demo.password);
+                    }}
+                    className="rounded-2xl border border-[var(--border)] bg-white/50 p-4 text-left transition hover:border-[var(--brand)] dark:bg-white/5"
+                  >
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--brand)]">
+                      {demo.role} demo
+                    </p>
+                    <p className="mt-2 text-xs font-semibold">{demo.email}</p>
+                    <p className="text-xs text-[var(--muted)]">{demo.password}</p>
+                    <p className="mt-2 text-[11px] text-[var(--muted)]">{demo.note}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <p className="text-center text-xs text-[var(--muted)]">
+              New to the portal?{" "}
+              <Link href="/" className="font-semibold text-[var(--brand)] hover:underline">
+                Explore Urbanexus
+              </Link>
+            </p>
+          </div>
+        </section>
       </div>
     </div>
   );

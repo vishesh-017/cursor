@@ -1,7 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import {
+  Activity,
+  Building2,
+  Gauge,
+  Sparkles,
+  TriangleAlert,
+} from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -13,10 +20,12 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { KpiCard } from "@/components/shared/kpi-card";
+import { PageHeader } from "@/components/shared/page-header";
 import { ReportTable } from "@/components/shared/report-table";
-import { StatCard } from "@/components/shared/stat-card";
+import { Badge, priorityTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import type {
@@ -92,15 +101,30 @@ export default function AdminDashboardPage() {
     };
   }, []);
 
+  const criticalOpen = useMemo(
+    () =>
+      reports.filter(
+        (r) =>
+          (r.priority === "critical" || r.priority === "high") &&
+          r.status !== "resolved" &&
+          r.status !== "rejected"
+      ),
+    [reports]
+  );
+
+  const aiCoverage = useMemo(() => {
+    if (!reports.length) return 0;
+    return Math.round(
+      (reports.filter((r) => r.ai).length / reports.length) * 100
+    );
+  }, [reports]);
+
   if (loading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-10 w-1/2" />
-        <div className="grid gap-4 sm:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-28" />
-          ))}
-        </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <Skeleton key={i} className="h-32 rounded-[18px]" />
+        ))}
       </div>
     );
   }
@@ -109,58 +133,137 @@ export default function AdminDashboardPage() {
     return <EmptyState title="Ops dashboard unavailable" description={error ?? "No data"} />;
   }
 
-  const criticalOpen = reports.filter(
-    (r) =>
-      (r.priority === "critical" || r.priority === "high") &&
-      r.status !== "resolved" &&
-      r.status !== "rejected"
-  );
+  const stressedWards = [...wards]
+    .sort((a, b) => a.healthScore - b.healthScore)
+    .slice(0, 5);
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700">
-            AMC control room
-          </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">
-            Operations dashboard
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-600">
-            Live intake across Ahmedabad wards — triage critical underpass flooding,
-            SG Highway pavement failures, and ward health scores.
-          </p>
+      <section className="relative overflow-hidden rounded-[28px] border border-[var(--border)] bg-slate-950 text-white shadow-[var(--shadow)]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_20%,rgba(43,181,174,0.35),transparent_40%),radial-gradient(circle_at_88%_0%,rgba(224,138,82,0.22),transparent_34%)]" />
+        <div className="relative grid gap-6 p-6 lg:grid-cols-[1.4fr_0.8fr] lg:p-8">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-200">
+              Municipal command center
+            </p>
+            <h1 className="mt-2 font-display text-3xl font-semibold sm:text-4xl">
+              AMC operations dashboard
+            </h1>
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-300">
+              Live intake across Ahmedabad wards — triage critical underpass flooding,
+              SG Highway pavement failures, and ward health scores in one control room.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Link href="/admin/priority">
+                <Button className="rounded-2xl bg-teal-400 text-slate-950 hover:bg-teal-300">
+                  Priority queue
+                </Button>
+              </Link>
+              <Link href="/admin/reports">
+                <Button
+                  variant="outline"
+                  className="rounded-2xl border-white/20 bg-white/5 text-white hover:bg-white/10"
+                >
+                  All reports
+                </Button>
+              </Link>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+              <p className="text-xs text-slate-300">Urban Pulse</p>
+              <p className="mt-2 font-display text-4xl font-semibold">
+                {pulse.urbanPulseIndex}
+              </p>
+              <Progress value={pulse.urbanPulseIndex} className="mt-3 bg-white/10" />
+            </div>
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+              <p className="text-xs text-slate-300">Infra health</p>
+              <p className="mt-2 font-display text-4xl font-semibold">
+                {pulse.infrastructureHealth}
+              </p>
+              <p className="mt-3 text-xs text-teal-200">Composite city readiness</p>
+            </div>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Link href="/admin/priority">
-            <Button variant="outline">Priority queue</Button>
-          </Link>
-          <Link href="/admin/reports">
-            <Button>All reports</Button>
-          </Link>
-        </div>
-      </div>
+      </section>
+
+      <PageHeader
+        eyebrow="Command KPIs"
+        title="Citywide operating picture"
+        description="Charts and queues sourced from /api/analytics and live report intake."
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total reports" value={stats.totalReports} hint="Citywide seed + live" />
-        <StatCard label="Open" value={stats.openReports} hint="In AMC workflow" />
-        <StatCard label="Resolved" value={stats.resolvedReports} hint="Closed tickets" />
-        <StatCard
-          label="Urban Pulse"
-          value={pulse.urbanPulseIndex}
-          hint={`Infra health ${pulse.infrastructureHealth}`}
+        <KpiCard
+          label="Total reports"
+          value={stats.totalReports}
+          icon={Activity}
+          hint="Citywide seed + live"
+          delay={0.05}
+        />
+        <KpiCard
+          label="Open"
+          value={stats.openReports}
+          icon={TriangleAlert}
+          hint="In AMC workflow"
+          delay={0.1}
+        />
+        <KpiCard
+          label="Resolved"
+          value={stats.resolvedReports}
+          icon={Building2}
+          hint="Closed tickets"
+          delay={0.15}
+        />
+        <KpiCard
+          label="AI coverage"
+          value={`${aiCoverage}%`}
+          icon={Sparkles}
+          hint={`${pulse.avgResolutionHours}h avg resolution`}
+          delay={0.2}
         />
       </div>
 
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="glass-card p-5 lg:col-span-1">
+          <div className="flex items-center gap-2 text-[var(--brand)]">
+            <Gauge className="h-4 w-4" />
+            <h2 className="font-display text-lg font-semibold text-[var(--foreground)]">
+              Urban Pulse
+            </h2>
+          </div>
+          <div className="mt-4 space-y-3">
+            <PulseRow label="Infrastructure health" value={pulse.infrastructureHealth} />
+            <PulseRow label="Dept efficiency" value={pulse.departmentEfficiency} />
+            <PulseRow label="Citizen participation" value={pulse.citizenParticipation} />
+          </div>
+        </div>
+        <div className="glass-card p-5 lg:col-span-2">
+          <h2 className="font-display text-lg font-semibold">Department performance</h2>
+          <div className="mt-4 space-y-3">
+            {departments.slice(0, 5).map((dept) => (
+              <div key={dept.id}>
+                <div className="mb-1 flex items-center justify-between text-sm">
+                  <span className="font-medium">{dept.name}</span>
+                  <span className="text-[var(--muted)]">
+                    {dept.openIssues} open · {dept.efficiency}% eff
+                  </span>
+                </div>
+                <Progress value={dept.efficiency} tone="brand" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle>Weekly intake</CardTitle>
-          </CardHeader>
-          <CardContent className="h-72">
+        <div className="glass-card p-5">
+          <h2 className="font-display text-lg font-semibold">Weekly intake</h2>
+          <div className="mt-4 h-72">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={stats.weeklyTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="day" tick={{ fontSize: 12 }} />
                 <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
                 <Tooltip />
@@ -173,88 +276,101 @@ export default function AdminDashboardPage() {
                 />
               </LineChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle>Category mix</CardTitle>
-          </CardHeader>
-          <CardContent className="h-72">
+          </div>
+        </div>
+        <div className="glass-card p-5">
+          <h2 className="font-display text-lg font-semibold">Category mix</h2>
+          <div className="mt-4 h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={stats.byCategory}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="category" tick={{ fontSize: 12 }} />
                 <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
                 <Tooltip />
                 <Bar dataKey="count" fill="#0f172a" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <Card className="glass-card">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Priority attention</CardTitle>
-            <Link href="/admin/priority" className="text-sm font-medium text-teal-700 hover:underline">
+        <div className="glass-card p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-display text-lg font-semibold">Priority queue preview</h2>
+              <p className="text-sm text-[var(--muted)]">
+                Critical / high tickets needing dispatch
+              </p>
+            </div>
+            <Link
+              href="/admin/priority"
+              className="text-sm font-medium text-[var(--brand)] hover:underline"
+            >
               Open queue
             </Link>
-          </CardHeader>
-          <CardContent>
-            {criticalOpen.length === 0 ? (
-              <p className="text-sm text-slate-500">No critical/high open tickets.</p>
-            ) : (
-              <ReportTable reports={criticalOpen.slice(0, 6)} hrefBase="/admin/reports" />
-            )}
-          </CardContent>
-        </Card>
+          </div>
+          {criticalOpen.length === 0 ? (
+            <p className="text-sm text-[var(--muted)]">No critical/high open tickets.</p>
+          ) : (
+            <ReportTable reports={criticalOpen.slice(0, 6)} hrefBase="/admin/reports" />
+          )}
+        </div>
 
         <div className="space-y-4">
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle>Top stressed wards</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {[...wards]
-                .sort((a, b) => a.healthScore - b.healthScore)
-                .slice(0, 5)
-                .map((ward) => (
-                  <div
-                    key={ward.id}
-                    className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                  >
-                    <div>
-                      <p className="font-medium text-slate-900">{ward.name}</p>
-                      <p className="text-xs text-slate-500">{ward.zone} zone</p>
-                    </div>
-                    <p className="font-semibold text-teal-800">{ward.healthScore}</p>
-                  </div>
-                ))}
-            </CardContent>
-          </Card>
-
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle>Department load</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {departments.slice(0, 4).map((dept) => (
+          <div className="glass-card p-5">
+            <h2 className="font-display text-lg font-semibold">Infra health · wards</h2>
+            <div className="mt-4 space-y-2">
+              {stressedWards.map((ward) => (
                 <div
-                  key={dept.id}
-                  className="flex items-center justify-between text-sm"
+                  key={ward.id}
+                  className="flex items-center justify-between rounded-2xl border border-[var(--border)] px-3 py-2 text-sm"
                 >
-                  <span className="text-slate-700">{dept.name}</span>
-                  <span className="font-semibold text-slate-900">
-                    {dept.openIssues} open
-                  </span>
+                  <div>
+                    <p className="font-medium">{ward.name}</p>
+                    <p className="text-xs text-[var(--muted)]">{ward.zone} zone</p>
+                  </div>
+                  <p className="font-semibold text-[var(--brand)]">{ward.healthScore}</p>
                 </div>
               ))}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+
+          <div className="glass-card p-5">
+            <h2 className="font-display text-lg font-semibold">AI analytics KPIs</h2>
+            <div className="mt-4 space-y-3">
+              {criticalOpen.slice(0, 3).map((report) => (
+                <div
+                  key={report.id}
+                  className="rounded-2xl border border-[var(--border)] px-3 py-3"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-semibold">{report.title}</p>
+                    <Badge tone={priorityTone(report.priority)}>{report.priority}</Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-[var(--muted)]">
+                    {report.ai
+                      ? `${report.ai.detection} · ${(report.ai.confidence * 100).toFixed(0)}%`
+                      : "Awaiting Exa triage"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PulseRow({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between text-sm">
+        <span className="text-[var(--muted)]">{label}</span>
+        <span className="font-semibold tabular-nums">{value}</span>
+      </div>
+      <Progress value={value} tone="brand" />
     </div>
   );
 }

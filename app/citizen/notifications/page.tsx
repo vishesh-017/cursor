@@ -1,17 +1,51 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import {
+  Award,
+  Bell,
+  CheckCheck,
+  CircleDot,
+  Info,
+  Sparkles,
+  Wrench,
+} from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { NotificationItem } from "@/types";
 
+type FilterMode = "all" | "unread";
+
+function iconFor(item: NotificationItem) {
+  const hay = `${item.title} ${item.body}`.toLowerCase();
+  if (hay.includes("badge") || hay.includes("reward") || hay.includes("points")) {
+    return Award;
+  }
+  if (
+    hay.includes("resolv") ||
+    hay.includes("crew") ||
+    hay.includes("repair") ||
+    hay.includes("assigned")
+  ) {
+    return Wrench;
+  }
+  if (hay.includes("ai") || hay.includes("exa") || hay.includes("analysis")) {
+    return Sparkles;
+  }
+  if (hay.includes("acknowledg") || hay.includes("status")) {
+    return CircleDot;
+  }
+  return Info;
+}
+
 export default function CitizenNotificationsPage() {
   const [items, setItems] = useState<NotificationItem[]>([]);
+  const [filter, setFilter] = useState<FilterMode>("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,12 +97,23 @@ export default function CitizenNotificationsPage() {
     }
   }
 
+  async function markAllRead() {
+    const unread = items.filter((n) => !n.read);
+    await Promise.all(unread.map((n) => markRead(n.id)));
+  }
+
+  const unreadCount = items.filter((n) => !n.read).length;
+  const visible = useMemo(() => {
+    if (filter === "unread") return items.filter((n) => !n.read);
+    return items;
+  }, [items, filter]);
+
   if (loading) {
     return (
       <div className="space-y-3">
-        <Skeleton className="h-10 w-1/3" />
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-24 w-full rounded-[18px]" />
+        <Skeleton className="h-28 w-full rounded-[18px]" />
+        <Skeleton className="h-28 w-full rounded-[18px]" />
       </div>
     );
   }
@@ -89,52 +134,116 @@ export default function CitizenNotificationsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-          Notifications
-        </h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Status updates, badge unlocks, and AMC acknowledgements for your reports.
-        </p>
+      <PageHeader
+        eyebrow="Civic inbox"
+        title="Notification center"
+        description="Status updates, badge unlocks, and AMC acknowledgements for your Ahmedabad infrastructure tickets."
+        actions={
+          unreadCount > 0 ? (
+            <Button variant="outline" onClick={() => void markAllRead()}>
+              <CheckCheck className="h-4 w-4" />
+              Mark all read
+            </Button>
+          ) : undefined
+        }
+      />
+
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="glass-card flex items-center gap-3 px-4 py-3">
+          <Bell className="h-5 w-5 text-[var(--brand)]" />
+          <div>
+            <p className="text-xs uppercase tracking-[0.14em] text-[var(--muted)]">
+              Unread
+            </p>
+            <p className="font-display text-2xl font-semibold">{unreadCount}</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              { id: "all" as const, label: "All" },
+              { id: "unread" as const, label: "Unread" },
+            ] as const
+          ).map((chip) => (
+            <button
+              key={chip.id}
+              type="button"
+              onClick={() => setFilter(chip.id)}
+              className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition ${
+                filter === chip.id
+                  ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand-strong)]"
+                  : "border-[var(--border)] text-[var(--muted)]"
+              }`}
+            >
+              {chip.label}
+              {chip.id === "unread" ? ` (${unreadCount})` : ""}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {items.length === 0 ? (
+      {visible.length === 0 ? (
         <EmptyState
-          title="Inbox is clear"
+          title={filter === "unread" ? "No unread alerts" : "Inbox is clear"}
           description="When AMC acknowledges or updates your tickets, alerts will appear here."
         />
       ) : (
         <div className="space-y-3">
-          {items.map((item) => (
-            <Card key={item.id} className="glass-card">
-              <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
-                <div>
-                  <CardTitle className="text-base">{item.title}</CardTitle>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {new Date(item.createdAt).toLocaleString("en-IN")}
-                  </p>
+          {visible.map((item) => {
+            const Icon = iconFor(item);
+            return (
+              <article
+                key={item.id}
+                className={`glass-card p-5 transition ${
+                  item.read ? "opacity-90" : "ring-1 ring-[var(--brand)]/30"
+                }`}
+              >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                  <div
+                    className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${
+                      item.read
+                        ? "bg-slate-200/70 text-[var(--muted)] dark:bg-white/10"
+                        : "bg-[var(--brand-soft)] text-[var(--brand)]"
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <h2 className="text-base font-semibold">{item.title}</h2>
+                        <p className="mt-1 text-xs text-[var(--muted)]">
+                          {new Date(item.createdAt).toLocaleString("en-IN")}
+                        </p>
+                      </div>
+                      {!item.read ? (
+                        <Badge tone="brand">Unread</Badge>
+                      ) : (
+                        <Badge tone="default">Read</Badge>
+                      )}
+                    </div>
+                    <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
+                      {item.body}
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {!item.read ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void markRead(item.id)}
+                        >
+                          Mark read
+                        </Button>
+                      ) : null}
+                      <Link href={item.href}>
+                        <Button size="sm">Open</Button>
+                      </Link>
+                    </div>
+                  </div>
                 </div>
-                {!item.read ? <Badge tone="brand">Unread</Badge> : <Badge>Read</Badge>}
-              </CardHeader>
-              <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-slate-600">{item.body}</p>
-                <div className="flex gap-2">
-                  {!item.read ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void markRead(item.id)}
-                    >
-                      Mark read
-                    </Button>
-                  ) : null}
-                  <Link href={item.href}>
-                    <Button size="sm">Open</Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+              </article>
+            );
+          })}
         </div>
       )}
     </div>

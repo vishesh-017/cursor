@@ -1,16 +1,74 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import {
+  Clock3,
+  MessageSquare,
+  ShieldCheck,
+  Sparkles,
+  TriangleAlert,
+} from "lucide-react";
+import { AiAnalysisPanel } from "@/components/report/ai-analysis-panel";
+import { PageHeader } from "@/components/shared/page-header";
 import { Badge, priorityTone, statusTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfidenceMeter, Progress } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { InfrastructureReport } from "@/types";
+import type { InfrastructureReport, ReportStatus } from "@/types";
 
 type NearbyReport = InfrastructureReport & { distanceKm: number };
+
+const STATUS_STEPS: ReportStatus[] = [
+  "submitted",
+  "acknowledged",
+  "assigned",
+  "in_progress",
+  "resolved",
+];
+
+const ROAD_HERO =
+  "https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&w=1600&q=80";
+
+type MockComment = {
+  id: string;
+  author: string;
+  role: string;
+  at: string;
+  body: string;
+};
+
+function buildComments(report: InfrastructureReport): MockComment[] {
+  return [
+    {
+      id: "c1",
+      author: "Ravi Patel",
+      role: "Neighbour · " + report.ward,
+      at: report.createdAt,
+      body: `Confirmed this near ${report.address}. Evening traffic from CG Road / BRTS side makes the stretch risky for two-wheelers.`,
+    },
+    {
+      id: "c2",
+      author: "AMC Field Desk",
+      role: "Municipal note",
+      at: report.updatedAt,
+      body:
+        report.status === "resolved"
+          ? "Crew closure verified. Citizens may re-open if monsoon runoff returns within 72 hours."
+          : "Ticket routed to ward inspector. Expect site visit during morning peak hours.",
+    },
+    {
+      id: "c3",
+      author: "Meera Desai",
+      role: "Civic volunteer",
+      at: report.updatedAt,
+      body: "Similar ponding reported last monsoon near Law Garden underpass — sharing photo timestamps with the ward office.",
+    },
+  ];
+}
 
 export default function CitizenReportDetailPage() {
   const params = useParams<{ id: string }>();
@@ -53,12 +111,17 @@ export default function CitizenReportDetailPage() {
     };
   }, [params.id]);
 
+  const comments = useMemo(
+    () => (report ? buildComments(report) : []),
+    [report]
+  );
+
   if (loading) {
     return (
       <div className="space-y-4">
-        <Skeleton className="h-10 w-2/3" />
-        <Skeleton className="h-40 w-full" />
-        <Skeleton className="h-56 w-full" />
+        <Skeleton className="h-56 w-full rounded-[28px]" />
+        <Skeleton className="h-40 w-full rounded-[18px]" />
+        <Skeleton className="h-56 w-full rounded-[18px]" />
       </div>
     );
   }
@@ -77,163 +140,269 @@ export default function CitizenReportDetailPage() {
     );
   }
 
+  const stepIndex = STATUS_STEPS.indexOf(
+    report.status === "rejected" ? "submitted" : report.status
+  );
+  const confidence = report.ai?.confidence ?? 0.72;
+  const trustScore = Math.min(
+    99,
+    Math.round(confidence * 100 * 0.55 + (report.pointsAwarded > 0 ? 28 : 18) + 12)
+  );
+  const priorityScore =
+    report.priority === "critical"
+      ? 96
+      : report.priority === "high"
+        ? 82
+        : report.priority === "medium"
+          ? 64
+          : 42;
+  const heroSrc = report.imageUrl || ROAD_HERO;
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700">
-            {report.id}
-          </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">
+      <section className="relative overflow-hidden rounded-[28px] border border-[var(--border)] shadow-[var(--shadow)]">
+        <div className="absolute inset-0">
+          <Image
+            src={heroSrc}
+            alt={`Site context for ${report.title}`}
+            fill
+            className="object-cover"
+            sizes="100vw"
+            unoptimized
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-slate-950/25" />
+        </div>
+        <div className="relative space-y-4 p-6 sm:p-8">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-200">
+              Ticket {report.id}
+            </p>
+            <Link href="/citizen/reports">
+              <Button
+                variant="outline"
+                className="rounded-2xl border-white/20 bg-white/10 text-white hover:bg-white/20"
+              >
+                All reports
+              </Button>
+            </Link>
+          </div>
+          <h1 className="max-w-3xl font-display text-3xl font-semibold text-white sm:text-4xl">
             {report.title}
           </h1>
-          <p className="mt-2 text-sm text-slate-600">
-            {report.address} · {report.ward}
+          <p className="max-w-2xl text-sm text-slate-300">
+            {report.address} · {report.ward} ward · {report.category}
           </p>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2">
             <Badge tone={priorityTone(report.priority)}>{report.priority}</Badge>
             <Badge tone={statusTone(report.status)}>
               {report.status.replace("_", " ")}
             </Badge>
-            <Badge tone="default">{report.category}</Badge>
+            <Badge tone="brand">{report.departmentId.replace("-", " ")}</Badge>
           </div>
         </div>
-        <Link href="/citizen/reports">
-          <Button variant="outline">All reports</Button>
-        </Link>
+      </section>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="glass-card p-5">
+          <ConfidenceMeter value={confidence} label="AI confidence" />
+        </div>
+        <div className="glass-card p-5">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-[var(--muted)]">Trust score</span>
+            <span className="font-semibold tabular-nums">{trustScore}</span>
+          </div>
+          <Progress value={trustScore} className="mt-2" tone="success" />
+          <p className="mt-2 text-xs text-[var(--muted)]">
+            Citizen + Exa verification blend
+          </p>
+        </div>
+        <div className="glass-card p-5">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-[var(--muted)]">Priority score</span>
+            <span className="font-semibold tabular-nums">{priorityScore}</span>
+          </div>
+          <Progress value={priorityScore} className="mt-2" tone="warning" />
+          <p className="mt-2 text-xs text-[var(--muted)]">
+            Queue weight for AMC dispatch
+          </p>
+        </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="glass-card lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Issue description</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-slate-700">
-            <p>{report.description}</p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <p>
-                <span className="font-medium text-slate-900">Department:</span>{" "}
-                {report.departmentId}
-              </p>
-              <p>
-                <span className="font-medium text-slate-900">Assigned to:</span>{" "}
-                {report.assignedTo ?? "Pending assignment"}
-              </p>
-              <p>
-                <span className="font-medium text-slate-900">Points awarded:</span>{" "}
-                {report.pointsAwarded}
-              </p>
-              <p>
-                <span className="font-medium text-slate-900">Coordinates:</span>{" "}
-                {report.latitude.toFixed(4)}, {report.longitude.toFixed(4)}
-              </p>
+      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="space-y-6">
+          <div className="glass-card p-5 sm:p-6">
+            <PageHeader
+              eyebrow="Issue brief"
+              title="What citizens reported"
+              description={report.description}
+            />
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <Meta label="Department" value={report.departmentId.replace("-", " ")} />
+              <Meta
+                label="Assigned to"
+                value={report.assignedTo ?? "Pending assignment"}
+              />
+              <Meta label="Points awarded" value={String(report.pointsAwarded)} />
+              <Meta
+                label="Coordinates"
+                value={`${report.latitude.toFixed(4)}, ${report.longitude.toFixed(4)}`}
+              />
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle>Status tracking</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            {(
-              [
-                "submitted",
-                "acknowledged",
-                "assigned",
-                "in_progress",
-                "resolved",
-              ] as const
-            ).map((step) => {
-              const reached =
-                report.timeline.some((t) => t.status === step) ||
-                report.status === step ||
-                (step === "resolved" && report.status === "resolved");
-              return (
+          <div className="glass-card p-5 sm:p-6">
+            <div className="flex items-center gap-2 text-[var(--brand)]">
+              <Clock3 className="h-4 w-4" />
+              <h2 className="font-display text-xl font-semibold text-[var(--foreground)]">
+                Status tracker
+              </h2>
+            </div>
+            <div className="mt-5 grid gap-2 sm:grid-cols-5">
+              {STATUS_STEPS.map((step, index) => {
+                const reached =
+                  report.timeline.some((t) => t.status === step) ||
+                  index <= stepIndex ||
+                  (step === "resolved" && report.status === "resolved");
+                return (
+                  <div
+                    key={step}
+                    className={`rounded-2xl border px-3 py-3 text-center text-xs font-semibold capitalize ${
+                      reached
+                        ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand-strong)]"
+                        : "border-[var(--border)] text-[var(--muted)]"
+                    }`}
+                  >
+                    {step.replace("_", " ")}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="glass-card p-5 sm:p-6">
+            <h2 className="font-display text-xl font-semibold">Resolution history</h2>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              Timeline events from intake through AMC field updates
+            </p>
+            <div className="mt-5 space-y-4">
+              {report.timeline.map((event) => (
                 <div
-                  key={step}
-                  className={`rounded-lg border px-3 py-2 ${
-                    reached
-                      ? "border-teal-200 bg-teal-50 text-teal-900"
-                      : "border-slate-200 bg-white text-slate-400"
-                  }`}
+                  key={event.id}
+                  className="relative border-l-2 border-[var(--brand)] pl-4"
                 >
-                  {step.replace("_", " ")}
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle>Timeline</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {report.timeline.map((event) => (
-              <div key={event.id} className="border-l-2 border-teal-600 pl-4">
-                <p className="text-sm font-semibold text-slate-900">{event.title}</p>
-                <p className="text-xs text-slate-500">
-                  {new Date(event.at).toLocaleString("en-IN")} · {event.actor}
-                </p>
-                <p className="mt-1 text-sm text-slate-600">{event.description}</p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle>Exa AI analysis</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-slate-700">
-            {report.ai ? (
-              <>
-                <p className="font-semibold text-slate-900">{report.ai.detection}</p>
-                <p>{report.ai.summary}</p>
-                <div className="flex flex-wrap gap-2">
-                  <Badge tone={priorityTone(report.ai.severity)}>
-                    {report.ai.severity}
-                  </Badge>
-                  <Badge tone="brand">{report.ai.damageClass}</Badge>
-                  <Badge tone="info">
-                    {(report.ai.confidence * 100).toFixed(0)}% confidence
-                  </Badge>
-                </div>
-                {report.ai.standardsNote ? (
-                  <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
-                    {report.ai.standardsNote}
+                  <p className="text-sm font-semibold">{event.title}</p>
+                  <p className="text-xs text-[var(--muted)]">
+                    {new Date(event.at).toLocaleString("en-IN")} · {event.actor}
                   </p>
-                ) : null}
-              </>
-            ) : (
-              <p className="text-slate-500">No AI analysis attached to this ticket.</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                  <p className="mt-1 text-sm text-[var(--muted)]">{event.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
 
-      {nearby.length > 0 ? (
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle>Nearby reports</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {nearby.map((item) => (
-              <Link
-                key={item.id}
-                href={`/citizen/reports/${item.id}`}
-                className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm hover:border-teal-300"
-              >
-                <span className="font-medium text-slate-900">{item.title}</span>
-                <span className="text-xs text-slate-500">{item.distanceKm} km</span>
-              </Link>
-            ))}
-          </CardContent>
-        </Card>
-      ) : null}
+          <div className="glass-card p-5 sm:p-6">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-[var(--brand)]" />
+              <h2 className="font-display text-xl font-semibold">Ward conversation</h2>
+            </div>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              Mock civic notes from neighbours and AMC desk — Ahmedabad context only
+            </p>
+            <div className="mt-4 space-y-3">
+              {comments.map((comment) => (
+                <div
+                  key={comment.id}
+                  className="rounded-2xl border border-[var(--border)] bg-white/40 p-4 dark:bg-white/5"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold">{comment.author}</p>
+                      <p className="text-xs text-[var(--muted)]">{comment.role}</p>
+                    </div>
+                    <p className="text-xs text-[var(--muted)]">
+                      {new Date(comment.at).toLocaleString("en-IN")}
+                    </p>
+                  </div>
+                  <p className="mt-2 text-sm leading-relaxed text-[var(--foreground)]">
+                    {comment.body}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+          <div className="flex items-center gap-2 text-[var(--brand)]">
+            <Sparkles className="h-4 w-4" />
+            <h2 className="font-display text-lg font-semibold text-[var(--foreground)]">
+              Exa AI summary
+            </h2>
+          </div>
+          <AiAnalysisPanel analysis={report.ai ?? null} />
+
+          <div className="glass-card p-5">
+            <div className="flex items-center gap-2 text-[var(--brand)]">
+              <ShieldCheck className="h-4 w-4" />
+              <h3 className="text-sm font-semibold">Dispatch snapshot</h3>
+            </div>
+            <ul className="mt-3 space-y-2 text-sm text-[var(--muted)]">
+              <li className="flex items-start gap-2">
+                <TriangleAlert className="mt-0.5 h-3.5 w-3.5 text-[var(--accent)]" />
+                Citizen: {report.citizenName}
+              </li>
+              <li>
+                Opened{" "}
+                {new Date(report.createdAt).toLocaleString("en-IN", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </li>
+              <li>Last update {new Date(report.updatedAt).toLocaleString("en-IN")}</li>
+            </ul>
+          </div>
+
+          {nearby.length > 0 ? (
+            <div className="glass-card p-5">
+              <h3 className="font-display text-lg font-semibold">Nearby reports</h3>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Same corridor / ward cluster from API
+              </p>
+              <div className="mt-4 space-y-2">
+                {nearby.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={`/citizen/reports/${item.id}`}
+                    className="block rounded-2xl border border-[var(--border)] px-3 py-3 transition hover:border-[var(--brand)]"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-semibold">{item.title}</p>
+                      <span className="text-xs text-[var(--muted)]">
+                        {item.distanceKm} km
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      {item.ward} · {item.priority}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function Meta({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="surface-card p-3">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-semibold capitalize">{value}</p>
     </div>
   );
 }

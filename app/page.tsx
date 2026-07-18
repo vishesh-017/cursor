@@ -14,36 +14,40 @@ export default function HomePage() {
           className="object-cover"
           sizes="100vw"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/70 to-teal-950/40" />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/92 via-slate-950/72 to-teal-950/45" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(43,181,174,0.22),transparent_40%)]" />
       </div>
 
       <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl flex-col justify-center px-4 py-16 sm:px-6">
-        <p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-teal-200">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
           {siteConfig.organization}
         </p>
-        <h1 className="max-w-3xl text-5xl font-semibold tracking-tight text-white sm:text-6xl md:text-7xl">
+        <p className="mb-2 text-sm font-medium text-teal-100/90">
+          Smart City infrastructure intelligence
+        </p>
+        <h1 className="max-w-3xl font-display text-5xl font-semibold tracking-tight text-white sm:text-6xl md:text-7xl">
           {siteConfig.name}
         </h1>
         <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-200 sm:text-lg">
           AI-powered urban infrastructure intelligence for Ahmedabad — Exa AI
-          triage and research, enterprise GIS, and AMC operations in one platform.
+          triage, enterprise GIS, and AMC operations in one premium civic platform.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
             href="/login"
-            className="inline-flex h-11 items-center rounded-md bg-teal-500 px-5 text-sm font-medium text-white hover:bg-teal-400"
+            className="inline-flex h-12 items-center rounded-2xl bg-teal-400 px-6 text-sm font-semibold text-slate-950 hover:bg-teal-300"
           >
             Sign in to portal
           </Link>
           <Link
             href="/map"
-            className="inline-flex h-11 items-center rounded-md border border-white/30 bg-white/10 px-5 text-sm font-medium text-white backdrop-blur hover:bg-white/20"
+            className="inline-flex h-12 items-center rounded-2xl border border-white/30 bg-white/10 px-6 text-sm font-semibold text-white backdrop-blur hover:bg-white/20"
           >
             Open GIS map
           </Link>
           <Link
             href="/admin/dashboard"
-            className="inline-flex h-11 items-center rounded-md px-5 text-sm font-medium text-teal-100 hover:text-white"
+            className="inline-flex h-12 items-center rounded-2xl px-5 text-sm font-medium text-teal-100 hover:text-white"
           >
             AMC command center →
           </Link>

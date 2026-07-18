@@ -1,14 +1,15 @@
 import type { HTMLAttributes } from "react";
 import { cn } from "@/utils/cn";
 
-const tones: Record<string, string> = {
-  default: "bg-slate-100 text-slate-700",
-  success: "bg-emerald-100 text-emerald-800",
-  warning: "bg-amber-100 text-amber-800",
-  danger: "bg-rose-100 text-rose-800",
-  info: "bg-sky-100 text-sky-800",
-  brand: "bg-teal-100 text-teal-800",
-};
+const tones = {
+  default: "bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-200",
+  success: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200",
+  warning: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200",
+  danger: "bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-200",
+  info: "bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-200",
+  brand: "bg-teal-100 text-teal-800 dark:bg-teal-500/15 dark:text-teal-200",
+  accent: "bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-200",
+} as const;
 
 export function Badge({
   className,
