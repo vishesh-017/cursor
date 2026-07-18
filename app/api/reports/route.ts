@@ -7,8 +7,31 @@ import {
   getReportStats,
   listReports,
 } from "@/services/store";
+import type { AiAnalysis } from "@/types";
 
 export const runtime = "nodejs";
+
+const aiSchema = z.object({
+  detection: z.string().min(2),
+  damageClass: z.string().min(2),
+  severity: z.enum(["low", "medium", "high", "critical"]),
+  summary: z.string().min(4),
+  suggestedDepartment: z.enum([
+    "roads",
+    "water",
+    "drainage",
+    "electrical",
+    "sanitation",
+    "town-planning",
+  ]),
+  suggestedPriority: z.enum(["low", "medium", "high", "critical"]),
+  confidence: z.number().min(0).max(1),
+  authenticity: z.enum(["likely_true", "possibly_fake", "uncertain"]),
+  authenticityScore: z.number().min(0).max(1),
+  priorityScore: z.number().min(0).max(100),
+  issueDetected: z.string().min(2),
+  standardsNote: z.string().optional(),
+});
 
 const createSchema = z.object({
   title: z.string().min(4).max(160),
@@ -30,6 +53,7 @@ const createSchema = z.object({
   longitude: z.number().min(72).max(73.5),
   imageUrl: z.string().url().optional(),
   runAi: z.boolean().optional(),
+  ai: aiSchema.optional(),
 });
 
 export async function GET(request: Request) {
@@ -70,21 +94,23 @@ export async function POST(request: Request) {
       );
     }
 
-    const analysis =
-      parsed.data.runAi === false
-        ? undefined
-        : await analyzeInfrastructure({
-            title: parsed.data.title,
-            description: parsed.data.description,
-            category: parsed.data.category,
-            ward: parsed.data.ward,
-          });
+    let analysis: AiAnalysis | undefined = parsed.data.ai;
+
+    if (!analysis && parsed.data.runAi !== false) {
+      analysis = await analyzeInfrastructure({
+        title: parsed.data.title,
+        description: parsed.data.description,
+        category: parsed.data.category,
+        ward: parsed.data.ward,
+      });
+    }
 
     const report = createReport({
       title: parsed.data.title,
       description: parsed.data.description,
       category: parsed.data.category,
-      priority: parsed.data.priority ?? analysis?.suggestedPriority ?? "medium",
+      priority:
+        parsed.data.priority ?? analysis?.suggestedPriority ?? "medium",
       ward: parsed.data.ward,
       wardId: parsed.data.wardId ?? `w-${parsed.data.ward.toLowerCase()}`,
       address: parsed.data.address,

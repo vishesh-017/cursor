@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   Badge,
   Department,
   InfrastructureReport,
@@ -195,28 +195,28 @@ export const badges: Badge[] = [
     id: "badge-first",
     name: "First Reporter",
     description: "Submitted your first verified infrastructure report.",
-    icon: "🏅",
+    icon: "ðŸ…",
     pointsRequired: 50,
   },
   {
     id: "badge-guardian",
     name: "Ward Guardian",
     description: "Five accepted reports in your home ward.",
-    icon: "🛡️",
+    icon: "ðŸ›¡ï¸",
     pointsRequired: 250,
   },
   {
     id: "badge-monsoon",
     name: "Monsoon Sentinel",
     description: "Flagged critical drainage issues during monsoon season.",
-    icon: "🌧️",
+    icon: "ðŸŒ§ï¸",
     pointsRequired: 400,
   },
   {
     id: "badge-civic",
     name: "Civic Champion",
     description: "Reached 1,000 civic participation points.",
-    icon: "🏆",
+    icon: "ðŸ†",
     pointsRequired: 1000,
   },
 ];
@@ -381,6 +381,10 @@ export const seedReports: InfrastructureReport[] = [
       suggestedDepartment: "roads",
       suggestedPriority: "high",
       confidence: 0.91,
+      authenticity: "likely_true",
+      authenticityScore: 0.9,
+      priorityScore: 75,
+      issueDetected: "Infrastructure issue",
     },
     timeline: [
       tl("t1", "2026-07-16T08:20:00.000Z", "Report submitted", "Citizen report received via Urbanexus.", "Harsh Patel", "submitted"),
@@ -418,6 +422,10 @@ export const seedReports: InfrastructureReport[] = [
       suggestedDepartment: "drainage",
       suggestedPriority: "critical",
       confidence: 0.94,
+      authenticity: "likely_true",
+      authenticityScore: 0.9,
+      priorityScore: 75,
+      issueDetected: "Infrastructure issue",
     },
     timeline: [
       tl("t1", "2026-07-15T14:05:00.000Z", "Report submitted", "Critical flooding flagged by citizen.", "Priya Mehta", "submitted"),
@@ -453,6 +461,10 @@ export const seedReports: InfrastructureReport[] = [
       suggestedDepartment: "electrical",
       suggestedPriority: "medium",
       confidence: 0.88,
+      authenticity: "likely_true",
+      authenticityScore: 0.9,
+      priorityScore: 75,
+      issueDetected: "Infrastructure issue",
     },
     timeline: [
       tl("t1", "2026-07-17T19:40:00.000Z", "Report submitted", "Night-time outage reported.", "Aarav Sharma", "submitted"),
@@ -487,6 +499,10 @@ export const seedReports: InfrastructureReport[] = [
       suggestedDepartment: "sanitation",
       suggestedPriority: "medium",
       confidence: 0.9,
+      authenticity: "likely_true",
+      authenticityScore: 0.9,
+      priorityScore: 75,
+      issueDetected: "Infrastructure issue",
     },
     timeline: [
       tl("t1", "2026-07-12T10:15:00.000Z", "Report submitted", "Overflow reported near depot.", "Sneha Joshi", "submitted"),
@@ -500,7 +516,7 @@ export const seedReports: InfrastructureReport[] = [
     id: "rpt-1005",
     title: "Low water pressure in Vastrapur Sector 5",
     description:
-      "Morning supply drops below usable pressure for multi-storey residential blocks between 6–9 AM.",
+      "Morning supply drops below usable pressure for multi-storey residential blocks between 6â€“9 AM.",
     category: "water",
     status: "in_progress",
     priority: "high",
@@ -524,6 +540,10 @@ export const seedReports: InfrastructureReport[] = [
       suggestedDepartment: "water",
       suggestedPriority: "high",
       confidence: 0.87,
+      authenticity: "likely_true",
+      authenticityScore: 0.9,
+      priorityScore: 75,
+      issueDetected: "Infrastructure issue",
     },
     timeline: [
       tl("t1", "2026-07-14T06:50:00.000Z", "Report submitted", "Pressure complaint logged.", "Aarav Sharma", "submitted"),
@@ -560,6 +580,10 @@ export const seedReports: InfrastructureReport[] = [
       suggestedDepartment: "town-planning",
       suggestedPriority: "low",
       confidence: 0.84,
+      authenticity: "likely_true",
+      authenticityScore: 0.9,
+      priorityScore: 75,
+      issueDetected: "Infrastructure issue",
     },
     timeline: [
       tl("t1", "2026-07-18T05:10:00.000Z", "Report submitted", "Accessibility issue reported.", "Harsh Patel", "submitted"),
@@ -595,6 +619,10 @@ export const seedReports: InfrastructureReport[] = [
       suggestedDepartment: "roads",
       suggestedPriority: "critical",
       confidence: 0.96,
+      authenticity: "likely_true",
+      authenticityScore: 0.9,
+      priorityScore: 75,
+      issueDetected: "Infrastructure issue",
     },
     timeline: [
       tl("t1", "2026-07-17T21:15:00.000Z", "Report submitted", "Critical hazard reported after dusk.", "Sneha Joshi", "submitted"),
@@ -631,6 +659,10 @@ export const seedReports: InfrastructureReport[] = [
       suggestedDepartment: "drainage",
       suggestedPriority: "high",
       confidence: 0.89,
+      authenticity: "likely_true",
+      authenticityScore: 0.9,
+      priorityScore: 75,
+      issueDetected: "Infrastructure issue",
     },
     timeline: [
       tl("t1", "2026-07-13T11:25:00.000Z", "Report submitted", "Drain blockage reported.", "Priya Mehta", "submitted"),
@@ -668,6 +700,10 @@ export const seedReports: InfrastructureReport[] = [
       suggestedDepartment: "town-planning",
       suggestedPriority: "medium",
       confidence: 0.86,
+      authenticity: "likely_true",
+      authenticityScore: 0.9,
+      priorityScore: 75,
+      issueDetected: "Infrastructure issue",
     },
     timeline: [
       tl("t1", "2026-07-10T09:00:00.000Z", "Report submitted", "Safety concern logged.", "Aarav Sharma", "submitted"),
@@ -704,6 +740,10 @@ export const seedReports: InfrastructureReport[] = [
       suggestedDepartment: "drainage",
       suggestedPriority: "high",
       confidence: 0.92,
+      authenticity: "likely_true",
+      authenticityScore: 0.9,
+      priorityScore: 75,
+      issueDetected: "Infrastructure issue",
     },
     timeline: [
       tl("t1", "2026-07-18T04:30:00.000Z", "Report submitted", "Sewage overflow reported early morning.", "Priya Mehta", "submitted"),
@@ -737,6 +777,10 @@ export const seedReports: InfrastructureReport[] = [
       suggestedDepartment: "roads",
       suggestedPriority: "medium",
       confidence: 0.83,
+      authenticity: "likely_true",
+      authenticityScore: 0.9,
+      priorityScore: 75,
+      issueDetected: "Infrastructure issue",
     },
     timeline: [
       tl("t1", "2026-07-16T18:00:00.000Z", "Report submitted", "Visibility hazard reported.", "Harsh Patel", "submitted"),
@@ -772,6 +816,10 @@ export const seedReports: InfrastructureReport[] = [
       suggestedDepartment: "water",
       suggestedPriority: "medium",
       confidence: 0.9,
+      authenticity: "likely_true",
+      authenticityScore: 0.9,
+      priorityScore: 75,
+      issueDetected: "Infrastructure issue",
     },
     timeline: [
       tl("t1", "2026-07-15T07:20:00.000Z", "Report submitted", "Leakage reported.", "Sneha Joshi", "submitted"),
@@ -904,3 +952,4 @@ export const demoCredentials = [
     userId: "user-citizen-2",
   },
 ] as const;
+

@@ -72,6 +72,8 @@ export interface TimelineEvent {
   status?: ReportStatus;
 }
 
+export type AuthenticityVerdict = "likely_true" | "possibly_fake" | "uncertain";
+
 export interface AiAnalysis {
   detection: string;
   damageClass: string;
@@ -79,7 +81,16 @@ export interface AiAnalysis {
   summary: string;
   suggestedDepartment: DepartmentId;
   suggestedPriority: Priority;
+  /** Model confidence in the triage overall (0–1). */
   confidence: number;
+  /** Whether the report appears genuine vs fabricated/spam. */
+  authenticity: AuthenticityVerdict;
+  /** Confidence that authenticity verdict is correct (0–1). */
+  authenticityScore: number;
+  /** Numeric priority score for AMC queue sorting (0–100). */
+  priorityScore: number;
+  /** Short plain-language issue detected. */
+  issueDetected: string;
   standardsNote?: string;
 }
 

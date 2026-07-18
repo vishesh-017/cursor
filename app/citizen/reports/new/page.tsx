@@ -176,12 +176,39 @@ export default function NewCitizenReportPage() {
       }
       setAnalysis(json.data.analysis);
       setPriority(json.data.analysis.suggestedPriority);
-      toast.success("AI analysis ready");
+      toast.success(
+        `Exa checked authenticity (${json.data.analysis.authenticity.replace("_", " ")}) · priority ${json.data.analysis.priorityScore}/100`
+      );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "AI analysis failed");
     } finally {
       setAnalyzing(false);
     }
+  }
+
+  function startManualAnalysis() {
+    const blank: AiAnalysis = {
+      detection: "",
+      damageClass: "",
+      severity: priority,
+      summary: "",
+      suggestedDepartment: "roads",
+      suggestedPriority: priority,
+      confidence: 0.7,
+      authenticity: "uncertain",
+      authenticityScore: 0.5,
+      priorityScore:
+        priority === "critical"
+          ? 90
+          : priority === "high"
+            ? 70
+            : priority === "medium"
+              ? 50
+              : 30,
+      issueDetected: title.trim() || "",
+    };
+    setAnalysis(blank);
+    toast.message("Fill authenticity, issue, and priority yourself — no AI required");
   }
 
   async function submitReport() {
@@ -201,7 +228,8 @@ export default function NewCitizenReportPage() {
           latitude,
           longitude,
           priority: analysis?.suggestedPriority ?? priority,
-          runAi: true,
+          runAi: !analysis,
+          ai: analysis ?? undefined,
         }),
       });
       const json = (await res.json()) as {
@@ -543,15 +571,20 @@ export default function NewCitizenReportPage() {
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <AiAnalysisPanel analysis={analysis} loading={analyzing} />
+          <AiAnalysisPanel
+            analysis={analysis}
+            loading={analyzing}
+            editable
+            onChange={setAnalysis}
+          />
           <div className="glass-card space-y-3 p-5">
             <div className="flex items-center gap-2 text-[var(--brand)]">
               <Sparkles className="h-4 w-4" />
               <p className="text-sm font-semibold">AMC actions</p>
             </div>
             <p className="text-xs text-[var(--muted)]">
-              Run Exa analyze for department routing, then submit into the municipal
-              priority queue.
+              Exa checks if the report looks true or fake, scores priority, and
+              detects the issue — or fill those fields yourself with no AI.
             </p>
             <Button
               type="button"
@@ -560,7 +593,15 @@ export default function NewCitizenReportPage() {
               disabled={analyzing}
               onClick={() => void runAiAnalyze()}
             >
-              {analyzing ? "Analyzing…" : "Run Exa analyze"}
+              {analyzing ? "Analyzing…" : "Run Exa authenticity check"}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full"
+              onClick={startManualAnalysis}
+            >
+              Write scores manually (no AI)
             </Button>
             <Button
               type="button"
