@@ -65,5 +65,17 @@ Status API: `GET /api/db/status` · Seed: `POST /api/db/seed`
 
 1. Import the GitHub repo
 2. Framework: Next.js (auto-detected)
-3. Add `EXA_API_KEY`
-4. Deploy
+3. Add environment variables (Production + Preview):
+
+```env
+EXA_API_KEY=
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
+SUPABASE_SERVICE_ROLE_KEY=sb_secret_...
+```
+
+Aliases also work: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`.
+
+4. In Supabase → SQL Editor, run `supabase/setup_all.sql` (required once — keys alone are not enough)
+5. Deploy, then seed: `POST https://YOUR_APP.vercel.app/api/db/seed` (or Admin → Database → Seed)
+6. Open the **same Vercel URL** on every laptop for shared reports
