@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { cn } from "@/utils/cn";
 
 export function EmptyState({
@@ -9,7 +10,7 @@ export function EmptyState({
   title: string;
   description: string;
   className?: string;
-  action?: React.ReactNode;
+  action?: ReactNode;
 }) {
   return (
     <div

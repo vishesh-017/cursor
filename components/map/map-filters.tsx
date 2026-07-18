@@ -38,11 +38,13 @@ export function MapFiltersBar({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search SG Highway, Maninagar, pothole…"
+          aria-label="Search infrastructure issues"
           className="h-11 rounded-md border border-slate-300 px-3 text-sm md:col-span-2"
         />
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
+          aria-label="Filter by category"
           className="h-11 rounded-md border border-slate-300 px-3 text-sm"
         >
           <option value="">All categories</option>
@@ -57,6 +59,7 @@ export function MapFiltersBar({
         <select
           value={priority}
           onChange={(e) => setPriority(e.target.value)}
+          aria-label="Filter by priority"
           className="h-11 rounded-md border border-slate-300 px-3 text-sm"
         >
           <option value="">All priorities</option>

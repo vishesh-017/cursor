@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { fail, fromError, ok } from "@/lib/api/response";
-import { gemini } from "@/lib/ai/gemini";
-import { exa } from "@/lib/ai/exa";
+import { analyzeInfrastructure } from "@/lib/ai/analyze";
+import { research } from "@/lib/ai/exa";
 
 export const runtime = "nodejs";
 
@@ -10,8 +10,6 @@ const schema = z.object({
   description: z.string().min(10),
   category: z.string().min(2),
   ward: z.string().optional(),
-  imageBase64: z.string().optional(),
-  mimeType: z.string().optional(),
   includeStandards: z.boolean().optional(),
 });
 
@@ -26,29 +24,37 @@ export async function POST(request: Request) {
       );
     }
 
-    const analysis = await gemini.analyzeInfrastructure(parsed.data);
+    const analysis = await analyzeInfrastructure(parsed.data);
 
-    let standards: { answer: string; sources: Array<{ title: string; url: string }> } | null =
-      null;
+    let standards: {
+      answer: string;
+      sources: Array<{ title: string; url: string }>;
+    } | null = null;
 
-    if (parsed.data.includeStandards !== false) {
+    if (parsed.data.includeStandards !== false && !analysis.standardsNote) {
       try {
-        const research = await exa.research({
+        const result = await research({
           topic: `${analysis.damageClass} municipal repair standards India Ahmedabad`,
           numResults: 4,
         });
         standards = {
-          answer: research.answer,
-          sources: research.sources.map((s) => ({ title: s.title, url: s.url })),
+          answer: result.answer,
+          sources: result.sources.map((s) => ({ title: s.title, url: s.url })),
         };
-        analysis.standardsNote = research.answer.slice(0, 420);
+        analysis.standardsNote = result.answer.slice(0, 420);
       } catch {
-        // Exa optional enrichment
+        // Standards enrichment is optional
       }
+    } else if (analysis.standardsNote) {
+      standards = { answer: analysis.standardsNote, sources: [] };
     }
 
-    return ok({ analysis, standards }, "AI analysis completed");
+    return ok({ analysis, standards }, "Exa AI analysis completed");
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Analyze failed";
+    if (message.includes("EXA_API_KEY")) {
+      return fail("MISSING_EXA_API_KEY", message, 503);
+    }
     return fromError(error);
   }
 }

@@ -186,7 +186,7 @@ export default function CitizenReportDetailPage() {
 
         <Card className="glass-card">
           <CardHeader>
-            <CardTitle>AI analysis</CardTitle>
+            <CardTitle>Exa AI analysis</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-slate-700">
             {report.ai ? (

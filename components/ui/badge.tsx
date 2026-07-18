@@ -1,3 +1,4 @@
+import type { HTMLAttributes } from "react";
 import { cn } from "@/utils/cn";
 
 const tones: Record<string, string> = {
@@ -13,7 +14,7 @@ export function Badge({
   className,
   tone = "default",
   ...props
-}: React.HTMLAttributes<HTMLSpanElement> & { tone?: keyof typeof tones }) {
+}: HTMLAttributes<HTMLSpanElement> & { tone?: keyof typeof tones }) {
   return (
     <span
       className={cn(

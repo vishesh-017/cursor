@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { fail, fromError, ok } from "@/lib/api/response";
 import { getSession } from "@/lib/auth/session";
-import { gemini } from "@/lib/ai/gemini";
+import { analyzeInfrastructure } from "@/lib/ai/analyze";
 import {
   createReport,
   getReportStats,
@@ -29,8 +29,6 @@ const createSchema = z.object({
   latitude: z.number().min(22).max(24),
   longitude: z.number().min(72).max(73.5),
   imageUrl: z.string().url().optional(),
-  imageBase64: z.string().optional(),
-  mimeType: z.string().optional(),
   runAi: z.boolean().optional(),
 });
 
@@ -75,13 +73,11 @@ export async function POST(request: Request) {
     const analysis =
       parsed.data.runAi === false
         ? undefined
-        : await gemini.analyzeInfrastructure({
+        : await analyzeInfrastructure({
             title: parsed.data.title,
             description: parsed.data.description,
             category: parsed.data.category,
             ward: parsed.data.ward,
-            imageBase64: parsed.data.imageBase64,
-            mimeType: parsed.data.mimeType,
           });
 
     const report = createReport({

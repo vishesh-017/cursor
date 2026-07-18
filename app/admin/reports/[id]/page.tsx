@@ -209,7 +209,7 @@ export default function AdminReportDetailPage() {
           {report.ai ? (
             <Card className="glass-card">
               <CardHeader>
-                <CardTitle>AI analysis</CardTitle>
+                <CardTitle>Exa AI analysis</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm text-slate-700">
                 <p className="font-semibold text-slate-900">{report.ai.detection}</p>

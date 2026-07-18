@@ -25,9 +25,8 @@ export default function HomePage() {
           {siteConfig.name}
         </h1>
         <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-200 sm:text-lg">
-          AI-powered urban infrastructure intelligence for Ahmedabad — Gemini
-          vision triage, Exa research, enterprise GIS, and AMC operations in one
-          platform.
+          AI-powered urban infrastructure intelligence for Ahmedabad — Exa AI
+          triage and research, enterprise GIS, and AMC operations in one platform.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Link

@@ -8,8 +8,7 @@ AI-powered Urban Infrastructure Intelligence Platform for **Ahmedabad Municipal 
 - Tailwind CSS + Framer Motion + Recharts + Sonner
 - Leaflet / OpenStreetMap (clusters, heatmap, ward boundaries)
 - Supabase-ready clients
-- **Gemini** for infrastructure vision analysis
-- **Exa AI** for standards research and contextual knowledge
+- **Exa AI only** for report triage, standards research, search, and answers
 
 ## Demo accounts
 
@@ -23,6 +22,7 @@ AI-powered Urban Infrastructure Intelligence Platform for **Ahmedabad Municipal 
 ```bash
 npm install
 cp .env.example .env.local
+# set EXA_API_KEY in .env.local
 npm run dev
 ```
 
@@ -30,25 +30,26 @@ npm run dev
 
 ```env
 EXA_API_KEY=
-GEMINI_API_KEY=
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 ```
 
-The app builds without keys. Gemini falls back to heuristic analysis; Exa routes return clear errors when unset.
+Set `EXA_API_KEY` in Vercel Project Settings → Environment Variables. Never commit secrets.
+
+The app still builds without keys; Exa routes degrade gracefully with heuristic triage when offline.
 
 ## Portals
 
 - `/login` — authentication
 - `/citizen/*` — citizen dashboard, reports, rewards, leaderboard, notifications, profile
-- `/admin/*` — ops dashboard, report management, priority queue, analytics, urban pulse, wards, departments
+- `/admin/*` — ops dashboard, report management, priority queue, analytics, urban pulse
 - `/map` — enterprise GIS
 - `/intel` — Exa research console
 
 ## Deploy on Vercel
 
 1. Import the GitHub repo
-2. Framework: Next.js
-3. Add env vars
+2. Framework: Next.js (auto-detected)
+3. Add `EXA_API_KEY`
 4. Deploy

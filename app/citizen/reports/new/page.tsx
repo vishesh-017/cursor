@@ -241,7 +241,7 @@ export default function NewCitizenReportPage() {
                 disabled={analyzing}
                 onClick={() => void runAiAnalyze()}
               >
-                {analyzing ? "Analyzing…" : "Run AI analyze"}
+                {analyzing ? "Analyzing…" : "Run Exa analyze"}
               </Button>
               <Button
                 type="button"
@@ -258,13 +258,13 @@ export default function NewCitizenReportPage() {
           <CardHeader>
             <CardTitle>AI triage preview</CardTitle>
             <CardDescription>
-              Gemini suggests department, severity, and repair notes before you submit.
+              Exa AI suggests department, severity, and repair notes before you submit.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {!analysis ? (
               <p className="text-sm text-slate-500">
-                Run AI analyze to preview detection class, confidence, and suggested
+                Run Exa analyze to preview detection class, confidence, and suggested
                 AMC department routing.
               </p>
             ) : (
