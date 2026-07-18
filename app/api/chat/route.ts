@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   buildChatQuery,
   buildLiveContextSnippet,
+  buildOfflineHelperAnswer,
   tryLiveDataAnswer,
   tryLocalFaq,
   type ChatMessage,
@@ -18,8 +19,8 @@ const messageSchema = z.object({
 });
 
 const bodySchema = z.object({
-  message: z.string().min(1).max(1000),
-  history: z.array(messageSchema).max(12).optional(),
+  message: z.string().min(1).max(1500),
+  history: z.array(messageSchema).max(16).optional(),
 });
 
 export async function POST(request: Request) {
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
     const message = parsed.data.message.trim();
     const history = (parsed.data.history ?? []) as ChatMessage[];
 
-    // 1) Live Urbanexus tickets (my status, worst roads, …)
+    // 1) Live Urbanexus tickets (status, wards, categories, critical, ids, …)
     const live = await tryLiveDataAnswer({ message, session });
     if (live) {
       return ok(
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2) In-app FAQ (how to file, demo login, …) — not "my status"
+    // 2) In-app FAQ (how to file, demo login, greetings, …)
     const local = tryLocalFaq(message);
     if (local) {
       return ok(
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 3) Exa web answer, grounded with a live data snippet
+    // 3) Exa web answer, grounded with a rich live data snippet
     const liveContext = await buildLiveContextSnippet(session);
     const query = buildChatQuery({
       message,
@@ -78,9 +79,25 @@ export async function POST(request: Request) {
 
     try {
       const result = await exa.answer({ query });
+      const answer = (result.answer || "").trim();
+      if (!answer) {
+        const fallback = await buildOfflineHelperAnswer({
+          message,
+          session,
+          liveContext,
+        });
+        return ok(
+          {
+            answer: fallback,
+            citations: [],
+            source: "fallback" as const,
+          },
+          "Helper reply ready"
+        );
+      }
       return ok(
         {
-          answer: result.answer,
+          answer,
           citations: result.citations.slice(0, 4).map((c) => ({
             title: c.title,
             url: c.url,
@@ -89,27 +106,20 @@ export async function POST(request: Request) {
         },
         "Chat reply ready"
       );
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Chat failed";
-      if (msg.includes("EXA_API_KEY")) {
-        return ok(
-          {
-            answer: [
-              session
-                ? `Hi ${session.name.split(" ")[0]} — Exa is offline, but I can still use Urbanexus data.`
-                : "Exa is offline, but I can still help with Urbanexus basics.",
-              "",
-              liveContext,
-              "",
-              'Try asking: "my report status" or "which ward has the worst roads".',
-            ].join("\n"),
-            citations: [],
-            source: "fallback" as const,
-          },
-          "Offline helper reply"
-        );
-      }
-      throw error;
+    } catch {
+      const fallback = await buildOfflineHelperAnswer({
+        message,
+        session,
+        liveContext,
+      });
+      return ok(
+        {
+          answer: fallback,
+          citations: [],
+          source: "fallback" as const,
+        },
+        "Offline helper reply"
+      );
     }
   } catch (error) {
     return fromError(error);

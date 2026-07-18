@@ -19,9 +19,13 @@ export type UiMessage = {
 
 const SUGGESTIONS = [
   "What's my report status?",
+  "How many open tickets?",
+  "Show critical tickets",
+  "Open in Maninagar",
+  "Drainage issues",
   "Which ward has the worst roads?",
   "How do I report a pothole?",
-  "What does AI Lab show?",
+  "What can you help with?",
 ];
 
 function uid() {
@@ -85,7 +89,7 @@ export function ChatPanel({
               {
                 id: "welcome",
                 role: "assistant",
-                content: `Hi ${first} - I'm Nexus. I can pull your live ticket status, show which wards have the most open road issues, or walk you through filing a report.`,
+                content: `Hi ${first} — I'm Nexus. Ask about your tickets, critical queue, any ward (e.g. Maninagar), categories (roads, drainage, water), ticket ids like rpt-1002, points, or how to file a report.`,
               },
             ]);
           }
@@ -96,7 +100,7 @@ export function ChatPanel({
               id: "welcome",
               role: "assistant",
               content:
-                "Hi - I'm Nexus, your Urbanexus civic assistant. Sign in to ask about your tickets, or ask which wards have the worst open road issues.",
+                "Hi — I'm Nexus. Sign in for your tickets, or ask citywide: critical issues, open in a ward, drainage/roads, or how to file a report.",
             },
           ]);
         }
@@ -109,7 +113,7 @@ export function ChatPanel({
               id: "welcome",
               role: "assistant",
               content:
-                "Hi - I'm Nexus. Ask about filing reports, your ticket status, or Ahmedabad ward road pressure.",
+                "Hi — I'm Nexus. Ask about reports, wards, categories, priority queue, or filing an issue.",
             },
           ]);
         }
@@ -340,8 +344,8 @@ export function ChatPanel({
           rows={compact ? 1 : 2}
           placeholder={
             userName
-              ? `${userName}, ask about your tickets or ward roads…`
-              : "Ask about reports, wards, AMC…"
+              ? `${userName}, ask tickets, wards, categories, rpt-…`
+              : "Ask tickets, wards, drainage, critical…"
           }
           className="max-h-28 min-h-11 flex-1 resize-none rounded-2xl border border-[var(--border)] bg-white/80 px-3 py-2.5 text-sm outline-none ring-[var(--ring)] placeholder:text-[var(--muted)] focus:ring-2 dark:bg-white/5"
           aria-label="Chat message"
