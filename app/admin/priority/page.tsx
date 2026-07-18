@@ -2,14 +2,23 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import {
+  AlertTriangle,
+  ArrowRight,
+  Flame,
+  ListOrdered,
+  Sparkles,
+} from "lucide-react";
 import { ReportTable } from "@/components/shared/report-table";
 import { StatCard } from "@/components/shared/stat-card";
-import { Badge, priorityTone } from "@/components/ui/badge";
+import { Badge, priorityTone, statusTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { InfrastructureReport } from "@/types";
+import { aiQueueScore, sortByAiPriority } from "@/utils/ai-priority";
+import { cn } from "@/utils/cn";
+import { statusLabel } from "@/utils/status";
 
 const openStatuses = new Set([
   "submitted",
@@ -56,25 +65,29 @@ export default function AdminPriorityPage() {
     };
   }, []);
 
-  const queue = reports
-    .filter(
+  const queue = sortByAiPriority(
+    reports.filter(
       (r) =>
-        (r.priority === "critical" || r.priority === "high") &&
+        (r.priority === "critical" ||
+          r.priority === "high" ||
+          (r.ai?.priorityScore ?? 0) >= 70) &&
         openStatuses.has(r.status)
     )
-    .sort((a, b) => {
-      const rank = { critical: 0, high: 1, medium: 2, low: 3 };
-      return rank[a.priority] - rank[b.priority];
-    });
+  );
 
   const critical = queue.filter((r) => r.priority === "critical");
   const high = queue.filter((r) => r.priority === "high");
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-10 w-1/3" />
-        <Skeleton className="h-40 w-full" />
+      <div className="space-y-3">
+        <Skeleton className="h-14 w-full rounded-2xl" />
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Skeleton className="h-24 rounded-2xl" />
+          <Skeleton className="h-24 rounded-2xl" />
+          <Skeleton className="h-24 rounded-2xl" />
+        </div>
+        <Skeleton className="h-64 w-full rounded-2xl" />
       </div>
     );
   }
@@ -84,26 +97,50 @@ export default function AdminPriorityPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">
-            Priority queue
-          </h1>
-          <p className="mt-2 text-sm text-[var(--muted)]">
-            Critical and high tickets needing immediate AMC desk action — monsoon
-            flooding, arterial road failures, and safety outages.
+    <div className="space-y-4">
+      <header className="flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-solid)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <ListOrdered className="h-4 w-4 shrink-0 text-[var(--brand)]" />
+            <h1 className="text-lg font-semibold tracking-tight text-[var(--foreground)] sm:text-xl">
+              Priority queue
+            </h1>
+            <span className="inline-flex items-center gap-1 rounded-md bg-[var(--brand-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--brand-strong)]">
+              <Sparkles className="h-3 w-3" />
+              AI ranked
+            </span>
+          </div>
+          <p className="mt-0.5 text-xs text-[var(--muted)]">
+            High-urgency open tickets · Exa triage score for dispatch order
           </p>
         </div>
         <Link href="/admin/reports">
-          <Button variant="outline">Full inbox</Button>
+          <Button variant="outline" size="sm" className="h-9 rounded-xl">
+            Full inbox
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
         </Link>
-      </div>
+      </header>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Queue size" value={queue.length} hint="Open critical + high" />
-        <StatCard label="Critical" value={critical.length} hint="Escalate first" />
-        <StatCard label="High" value={high.length} hint="Same-day triage" />
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatCard
+          label="Queue size"
+          value={queue.length}
+          hint="Open urgent tickets"
+          tone="brand"
+        />
+        <StatCard
+          label="Critical"
+          value={critical.length}
+          hint="Escalate first"
+          tone="danger"
+        />
+        <StatCard
+          label="High"
+          value={high.length}
+          hint="Same-day triage"
+          tone="warning"
+        />
       </div>
 
       {queue.length === 0 ? (
@@ -113,34 +150,89 @@ export default function AdminPriorityPage() {
         />
       ) : (
         <>
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle>Escalation board</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {queue.slice(0, 8).map((report) => (
-                <Link
-                  key={report.id}
-                  href={`/admin/reports/${report.id}`}
-                  className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white/80 p-4 transition hover:border-teal-300 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div>
-                    <p className="font-semibold text-[var(--foreground)]">{report.title}</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {report.ward} · {report.departmentId} ·{" "}
-                      {report.assignedTo ?? "Unassigned"}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Badge tone={priorityTone(report.priority)}>{report.priority}</Badge>
-                    <Badge tone="warning">{report.status.replace("_", " ")}</Badge>
-                  </div>
-                </Link>
-              ))}
-            </CardContent>
-          </Card>
+          <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface-solid)]">
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3 sm:px-5">
+              <div className="flex items-center gap-2">
+                <Flame className="h-4 w-4 text-rose-500" />
+                <h2 className="text-sm font-semibold text-[var(--foreground)]">
+                  Escalation board
+                </h2>
+              </div>
+              <p className="text-[11px] text-[var(--muted)]">
+                Top {Math.min(8, queue.length)} by AI score
+              </p>
+            </div>
+            <ul className="divide-y divide-[var(--border)]">
+              {queue.slice(0, 8).map((report, index) => {
+                const score = Math.round(aiQueueScore(report));
+                return (
+                  <li key={report.id}>
+                    <Link
+                      href={`/admin/reports/${report.id}`}
+                      className={cn(
+                        "flex flex-col gap-3 px-4 py-3.5 transition hover:bg-[var(--brand-soft)]/40 sm:flex-row sm:items-center sm:justify-between sm:px-5",
+                        index === 0 && "bg-rose-500/[0.06]"
+                      )}
+                    >
+                      <div className="flex min-w-0 items-start gap-3">
+                        <span
+                          className={cn(
+                            "grid h-9 w-9 shrink-0 place-items-center rounded-xl text-xs font-bold tabular-nums",
+                            index < 3
+                              ? "bg-[var(--brand)] text-white"
+                              : "bg-[var(--surface)] text-[var(--muted)] ring-1 ring-[var(--border)]"
+                          )}
+                        >
+                          {index + 1}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold capitalize text-[var(--foreground)]">
+                            {report.title}
+                          </p>
+                          <p className="mt-0.5 truncate text-xs text-[var(--muted)]">
+                            {report.ward} ·{" "}
+                            {report.departmentId.replace("-", " ")} ·{" "}
+                            {report.assignedTo ?? "Unassigned"}
+                          </p>
+                          {report.ai?.issueDetected ? (
+                            <p className="mt-1 line-clamp-1 text-[11px] text-[var(--muted)]">
+                              {report.ai.issueDetected}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-[var(--brand-soft)] px-2 py-1 text-[11px] font-semibold tabular-nums text-[var(--brand-strong)]">
+                          <Sparkles className="h-3 w-3" />
+                          {score}
+                        </span>
+                        {report.priority === "critical" ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 dark:text-rose-300">
+                            <AlertTriangle className="h-3 w-3" />
+                            Critical
+                          </span>
+                        ) : (
+                          <Badge tone={priorityTone(report.priority)}>
+                            {report.priority}
+                          </Badge>
+                        )}
+                        <Badge tone={statusTone(report.status)}>
+                          {statusLabel(report.status)}
+                        </Badge>
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
 
-          <ReportTable reports={queue} hrefBase="/admin/reports" />
+          <ReportTable
+            reports={queue}
+            hrefBase="/admin/reports"
+            showAiScore
+            dense
+          />
         </>
       )}
     </div>

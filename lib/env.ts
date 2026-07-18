@@ -59,10 +59,15 @@ export function requireSupabaseServiceRoleKey(): string {
 }
 
 export function getEnvStatus() {
+  const supabaseUrl = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const supabaseAnon = Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  const supabaseService = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
   return {
     exa: Boolean(process.env.EXA_API_KEY),
-    supabaseUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
-    supabaseAnon: Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
-    supabaseService: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+    supabaseUrl,
+    supabaseAnon,
+    supabaseService,
+    /** All three Supabase keys present → Postgres store is active. */
+    database: supabaseUrl && supabaseAnon && supabaseService,
   };
 }

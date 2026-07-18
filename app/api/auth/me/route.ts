@@ -9,6 +9,6 @@ export async function GET() {
   if (!session) {
     return fail("UNAUTHENTICATED", "No active session", 401);
   }
-  const profile = getUserById(session.id);
+  const profile = await getUserById(session.id);
   return ok({ user: session, profile }, "Session active");
 }

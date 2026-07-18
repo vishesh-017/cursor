@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Camera,
@@ -10,6 +10,7 @@ import {
   ChevronRight,
   ImagePlus,
   MapPin,
+  Navigation,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -21,8 +22,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
+import { useRealtimeLocation } from "@/hooks/use-realtime-location";
 import type { Priority, ReportCategory, Ward } from "@/types";
 import type { VisualSignals } from "@/lib/ai/image-scan";
+import { isNearAhmedabad, nearestWard } from "@/utils/geo";
 import { compressImageFile } from "@/utils/image-evidence";
 
 const LocationPicker = dynamic(() => import("@/components/map/location-picker"), {
@@ -72,12 +75,23 @@ export default function NewCitizenReportPage() {
   const [latitude, setLatitude] = useState(23.0387);
   const [longitude, setLongitude] = useState(72.5289);
   const [locationPinned, setLocationPinned] = useState(false);
+  const [locationSource, setLocationSource] = useState<"manual" | "gps" | null>(
+    null
+  );
+  const [followLive, setFollowLive] = useState(false);
+  const [awaitingGpsOnce, setAwaitingGpsOnce] = useState(false);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [roadName, setRoadName] = useState("");
   const [previews, setPreviews] = useState<PreviewFile[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const reverseTimer = useRef<number | null>(null);
+  const lastReverseKey = useRef("");
+  const wardsRef = useRef<Ward[]>([]);
+
+  const gps = useRealtimeLocation(false);
 
   useEffect(() => {
     void (async () => {
@@ -88,18 +102,105 @@ export default function NewCitizenReportPage() {
       };
       if (res.ok && json.success && json.data) {
         setWards(json.data.wards);
+        wardsRef.current = json.data.wards;
       }
     })();
   }, []);
 
+  // Auto-start live GPS on the map step; pause when leaving it.
+  useEffect(() => {
+    if (step !== 3) {
+      if (followLive) {
+        setFollowLive(false);
+        gps.stopTracking();
+      }
+      return;
+    }
+    if (!gps.supported) return;
+    setFollowLive(true);
+    gps.startTracking();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when step flips
+  }, [step]);
+
   function applyWard(name: string) {
     setWardName(name);
     const match = wards.find((w) => w.name === name);
-    if (match) {
+    if (match && locationSource !== "gps") {
       setLatitude(match.center.lat);
       setLongitude(match.center.lng);
     }
   }
+
+  const reverseGeocode = useCallback((lat: number, lng: number) => {
+    const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+    if (key === lastReverseKey.current) return;
+    if (reverseTimer.current) window.clearTimeout(reverseTimer.current);
+    reverseTimer.current = window.setTimeout(() => {
+      lastReverseKey.current = key;
+      void (async () => {
+        try {
+          const res = await fetch(
+            `/api/geocode/reverse?lat=${lat}&lng=${lng}`,
+            { cache: "no-store" }
+          );
+          const json = (await res.json()) as {
+            success?: boolean;
+            data?: { label: string; road: string; suburb?: string | null };
+          };
+          if (!res.ok || !json.success || !json.data) return;
+          const short = json.data.label.split(",").slice(0, 3).join(",").trim();
+          setAddress(short);
+          setRoadName(json.data.road);
+          const match =
+            wardsRef.current.find((w) =>
+              json.data!.label.toLowerCase().includes(w.name.toLowerCase())
+            ) ?? nearestWard(lat, lng, wardsRef.current);
+          if (match) setWardName(match.name);
+        } catch {
+          // Keep coords even if reverse geocode fails.
+        }
+      })();
+    }, 600);
+  }, []);
+
+  const applyGpsFix = useCallback(
+    (fix: {
+      latitude: number;
+      longitude: number;
+      accuracy: number;
+    }) => {
+      if (!isNearAhmedabad(fix.latitude, fix.longitude)) {
+        toast.error(
+          "GPS is outside Ahmedabad metro — pin the issue on the map instead"
+        );
+        setFollowLive(false);
+        gps.stopTracking();
+        return;
+      }
+      setLatitude(Number(fix.latitude.toFixed(5)));
+      setLongitude(Number(fix.longitude.toFixed(5)));
+      setGpsAccuracy(fix.accuracy);
+      setLocationPinned(true);
+      setLocationSource("gps");
+      const ward = nearestWard(fix.latitude, fix.longitude, wardsRef.current);
+      if (ward) setWardName(ward.name);
+      reverseGeocode(fix.latitude, fix.longitude);
+    },
+    [gps, reverseGeocode]
+  );
+
+  useEffect(() => {
+    if (!gps.position) return;
+    if (!followLive && !awaitingGpsOnce) return;
+    applyGpsFix(gps.position);
+    if (awaitingGpsOnce) setAwaitingGpsOnce(false);
+  }, [followLive, awaitingGpsOnce, gps.position, applyGpsFix]);
+
+  useEffect(() => {
+    if (gps.error && followLive) {
+      toast.error(gps.error);
+    }
+  }, [gps.error, followLive]);
 
   const simulateUpload = useCallback((files: FileList | File[]) => {
     const list = Array.from(files).filter((f) => f.type.startsWith("image/"));
@@ -148,19 +249,31 @@ export default function NewCitizenReportPage() {
     longitude: number;
     label?: string;
   }) {
+    // Manual search / map tap pauses live follow so the pin stays put.
+    if (followLive) {
+      setFollowLive(false);
+      gps.stopTracking();
+    }
     setLatitude(Number(pick.latitude.toFixed(5)));
     setLongitude(Number(pick.longitude.toFixed(5)));
     setLocationPinned(true);
+    setLocationSource("manual");
+    setGpsAccuracy(null);
     if (pick.label) {
       const short = pick.label.split(",").slice(0, 3).join(",").trim();
       setAddress(short);
       setRoadName(pick.label.split(",")[0]?.trim() ?? "");
-      const match = wards.find((w) =>
-        pick.label!.toLowerCase().includes(w.name.toLowerCase())
-      );
+      const match =
+        wards.find((w) =>
+          pick.label!.toLowerCase().includes(w.name.toLowerCase())
+        ) ?? nearestWard(pick.latitude, pick.longitude, wards);
       if (match) {
         setWardName(match.name);
       }
+    } else {
+      const match = nearestWard(pick.latitude, pick.longitude, wards);
+      if (match) setWardName(match.name);
+      reverseGeocode(pick.latitude, pick.longitude);
     }
   }
 
@@ -481,16 +594,30 @@ export default function NewCitizenReportPage() {
                     Map location (compulsory)
                   </h2>
                   <p className="mt-1 text-sm text-[var(--muted)]">
-                    Search an Ahmedabad place, select it, then fine-tune the pin.
-                    Reports cannot be submitted without a confirmed map location.
+                    Live GPS fills your pin as you stand at the issue. You can
+                    also search or tap the map. Reports need a confirmed location.
                   </p>
                 </div>
-                <Badge tone={locationPinned ? "success" : "warning"}>
-                  {locationPinned ? "Location confirmed" : "Pin required"}
-                </Badge>
+                <div className="flex flex-wrap gap-2">
+                  {followLive || locationSource === "gps" ? (
+                    <Badge tone="brand">
+                      <Navigation className="mr-1 h-3 w-3" />
+                      {followLive ? "Live GPS" : "GPS pin"}
+                    </Badge>
+                  ) : null}
+                  <Badge tone={locationPinned ? "success" : "warning"}>
+                    {locationPinned ? "Location confirmed" : "Pin required"}
+                  </Badge>
+                </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {gps.error ? (
+                <p className="rounded-2xl border border-amber-300/60 bg-amber-50/80 px-3 py-2 text-xs text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
+                  {gps.error}
+                </p>
+              ) : null}
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
                 <div className="surface-card p-3">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
                     Latitude
@@ -505,6 +632,14 @@ export default function NewCitizenReportPage() {
                 </div>
                 <div className="surface-card p-3">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                    GPS accuracy
+                  </p>
+                  <p className="mt-1 font-semibold tabular-nums">
+                    {gpsAccuracy != null ? `±${Math.round(gpsAccuracy)} m` : "—"}
+                  </p>
+                </div>
+                <div className="surface-card p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
                     Ward
                   </p>
                   <p className="mt-1 font-semibold">{wardName}</p>
@@ -514,10 +649,10 @@ export default function NewCitizenReportPage() {
                     Road / place
                   </p>
                   <p className="mt-1 truncate text-sm font-semibold">
-                    {roadName || "Select from search"}
+                    {roadName || (followLive ? "Resolving…" : "Select from search")}
                   </p>
                 </div>
-                <div className="surface-card p-3 sm:col-span-2 lg:col-span-1">
+                <div className="surface-card p-3">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
                     Landmark
                   </p>
@@ -541,12 +676,32 @@ export default function NewCitizenReportPage() {
                   latitude={latitude}
                   longitude={longitude}
                   onPick={applyLocationPick}
+                  accuracyMeters={gpsAccuracy}
+                  liveTracking={followLive}
+                  liveLocating={gps.locating}
+                  onUseMyLocation={() => {
+                    setFollowLive(false);
+                    gps.stopTracking();
+                    setAwaitingGpsOnce(true);
+                    gps.locateOnce();
+                  }}
+                  onToggleLive={() => {
+                    if (followLive) {
+                      setFollowLive(false);
+                      gps.stopTracking();
+                      toast.message("Live GPS paused — pin stays where it is");
+                    } else {
+                      setFollowLive(true);
+                      gps.startTracking();
+                      toast.success("Following your live GPS");
+                    }
+                  }}
                 />
               </div>
 
               {!locationPinned ? (
                 <p className="text-sm text-amber-700 dark:text-amber-300">
-                  Search a location or click the map to drop your pin before submitting.
+                  Allow location access, search a place, or tap the map before submitting.
                 </p>
               ) : null}
             </div>
@@ -592,6 +747,11 @@ export default function NewCitizenReportPage() {
               </li>
               <li className={locationPinned ? "text-emerald-600" : ""}>
                 {locationPinned ? "✓" : "○"} Map location pinned
+                {locationSource === "gps"
+                  ? " (GPS)"
+                  : locationSource === "manual"
+                    ? " (manual)"
+                    : ""}
               </li>
               <li className={address.trim().length >= 4 ? "text-emerald-600" : ""}>
                 {address.trim().length >= 4 ? "✓" : "○"} Landmark / address

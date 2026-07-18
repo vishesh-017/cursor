@@ -76,7 +76,7 @@ export async function GET(_request: Request, { params }: Params) {
   try {
     const session = await getSession();
     const { id } = await params;
-    const report = getReportById(id);
+    const report = await getReportById(id);
     if (!report) return fail("NOT_FOUND", "Report not found", 404);
 
     if (
@@ -91,7 +91,7 @@ export async function GET(_request: Request, { params }: Params) {
       );
     }
 
-    const nearby = listReports()
+    const nearby = (await listReports())
       .filter((r) => r.id !== id)
       .map((r) => ({
         report: r,
@@ -118,7 +118,7 @@ export async function PATCH(request: Request, { params }: Params) {
     }
 
     const { id } = await params;
-    const existing = getReportById(id);
+    const existing = await getReportById(id);
     if (!existing) return fail("NOT_FOUND", "Report not found", 404);
     if (!canAccessReport(session, existing)) {
       return fail(
@@ -137,7 +137,7 @@ export async function PATCH(request: Request, { params }: Params) {
       );
     }
 
-    const report = updateReport(id, {
+    const report = await updateReport(id, {
       ...parsed.data,
       actor: session.name,
     });

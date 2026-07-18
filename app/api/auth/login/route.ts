@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       return fail("VALIDATION_ERROR", "Valid email and password required", 422);
     }
 
-    const session = authenticate(body.data.email, body.data.password);
+    const session = await authenticate(body.data.email, body.data.password);
     if (!session) {
       return fail("INVALID_CREDENTIALS", "Incorrect email or password", 401);
     }

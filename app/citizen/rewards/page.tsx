@@ -2,7 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Award, Gift, Sparkles, Target, Trophy } from "lucide-react";
+import {
+  Award,
+  Check,
+  Gift,
+  Lock,
+  Sparkles,
+  Target,
+  Trophy,
+} from "lucide-react";
 import { toast } from "sonner";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { PageHeader } from "@/components/shared/page-header";
@@ -11,6 +19,8 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { resolveBadgeIcon } from "@/utils/badge-icons";
+import { cn } from "@/utils/cn";
 import type { Badge as BadgeType, Reward, SessionUser, UserProfile } from "@/types";
 
 const achievements = [
@@ -237,40 +247,111 @@ export default function CitizenRewardsPage() {
         </div>
       </div>
 
-      <div className="glass-card p-5 sm:p-6">
-        <h2 className="font-display text-xl font-semibold">Badges gallery</h2>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          Recognition for monsoon alerts, ward guardianship, and sustained reporting.
-        </p>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {badges.map((badge) => {
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand)]">
+              Recognition
+            </p>
+            <h2 className="mt-1 font-display text-2xl font-semibold text-[var(--foreground)]">
+              Badges gallery
+            </h2>
+            <p className="mt-1 max-w-xl text-sm text-[var(--muted)]">
+              Monsoon alerts, ward guardianship, and sustained reporting — unlock
+              as you contribute across Ahmedabad.
+            </p>
+          </div>
+          <p className="text-sm font-medium text-[var(--muted)]">
+            <span className="font-semibold text-[var(--foreground)]">
+              {earned.size}
+            </span>
+            /{badges.length} earned
+          </p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          {badges.map((badge, index) => {
             const unlocked = earned.has(badge.id);
+            const Icon = resolveBadgeIcon(badge.icon);
+            const progress = unlocked
+              ? 100
+              : Math.min(
+                  99,
+                  Math.round((points / Math.max(1, badge.pointsRequired)) * 100)
+                );
+
             return (
-              <div
+              <motion.article
                 key={badge.id}
-                className={`rounded-2xl border p-4 transition ${
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.04 * index, duration: 0.28 }}
+                className={cn(
+                  "relative overflow-hidden rounded-[22px] border p-5 transition",
                   unlocked
-                    ? "border-[var(--brand)] bg-[var(--brand-soft)]"
-                    : "border-[var(--border)] bg-white/40 opacity-80 dark:bg-white/5"
-                }`}
+                    ? "border-teal-500/35 bg-gradient-to-br from-teal-500/15 via-[var(--surface-solid)] to-[var(--surface-solid)] shadow-[0_0_0_1px_rgba(43,181,174,0.12)]"
+                    : "border-[var(--border)] bg-[var(--surface-solid)]"
+                )}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-2xl" aria-hidden>
-                      {badge.icon}
+                <div className="flex items-start gap-4">
+                  <span
+                    className={cn(
+                      "grid h-14 w-14 shrink-0 place-items-center rounded-2xl",
+                      unlocked
+                        ? "bg-[var(--brand)] text-white shadow-md shadow-teal-900/20"
+                        : "bg-slate-100 text-slate-400 dark:bg-white/5 dark:text-slate-500"
+                    )}
+                  >
+                    <Icon className="h-6 w-6" aria-hidden />
+                  </span>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <h3 className="font-semibold text-[var(--foreground)]">
+                        {badge.name}
+                      </h3>
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                          unlocked
+                            ? "bg-emerald-600 text-white"
+                            : "bg-slate-200/90 text-slate-700 dark:bg-white/10 dark:text-slate-200"
+                        )}
+                      >
+                        {unlocked ? (
+                          <>
+                            <Check className="h-3 w-3" />
+                            Earned
+                          </>
+                        ) : (
+                          <>
+                            <Lock className="h-3 w-3" />
+                            {badge.pointsRequired} pts
+                          </>
+                        )}
+                      </span>
+                    </div>
+                    <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">
+                      {badge.description}
                     </p>
-                    <p className="mt-1 font-semibold">{badge.name}</p>
+                    {!unlocked ? (
+                      <div className="mt-3">
+                        <div className="mb-1 flex justify-between text-[11px] text-[var(--muted)]">
+                          <span>Progress</span>
+                          <span className="tabular-nums">
+                            {points}/{badge.pointsRequired}
+                          </span>
+                        </div>
+                        <Progress value={progress} tone="brand" />
+                      </div>
+                    ) : null}
                   </div>
-                  <Badge tone={unlocked ? "success" : "default"}>
-                    {unlocked ? "Earned" : `${badge.pointsRequired} pts`}
-                  </Badge>
                 </div>
-                <p className="mt-2 text-sm text-[var(--muted)]">{badge.description}</p>
-              </div>
+              </motion.article>
             );
           })}
         </div>
-      </div>
+      </section>
 
       <div className="glass-card p-5 sm:p-6">
         <h2 className="font-display text-xl font-semibold">Redeemable rewards</h2>

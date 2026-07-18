@@ -132,7 +132,7 @@ export async function GET(request: Request) {
 
     const reports = scopeReportsForSession(
       session,
-      listReports({
+      await listReports({
         citizenId: searchParams.get("citizenId") ?? undefined,
         status: (searchParams.get("status") as never) ?? undefined,
         ward,
@@ -145,7 +145,7 @@ export async function GET(request: Request) {
 
     const stats =
       searchParams.get("stats") === "1"
-        ? getReportStats(
+        ? await getReportStats(
             managed === "all"
               ? { ward: requestedWard ?? undefined }
               : { wards: managed }
@@ -208,7 +208,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const report = createReport({
+    const report = await createReport({
       title: parsed.data.title,
       description: parsed.data.description,
       category: parsed.data.category,

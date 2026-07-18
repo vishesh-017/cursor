@@ -27,12 +27,16 @@ export async function getSession(): Promise<SessionUser | null> {
   return decodeSession(jar.get(SESSION_COOKIE)?.value);
 }
 
-export function authenticate(email: string, password: string): SessionUser | null {
+export async function authenticate(
+  email: string,
+  password: string
+): Promise<SessionUser | null> {
   const cred = demoCredentials.find(
     (c) => c.email.toLowerCase() === email.toLowerCase() && c.password === password
   );
   if (!cred) return null;
-  const user = getUserById(cred.userId) ?? getUserByEmail(email);
+  const user =
+    (await getUserById(cred.userId)) ?? (await getUserByEmail(email));
   if (!user) return null;
   const managedWards =
     user.managedWards?.length

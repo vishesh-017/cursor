@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  Circle,
   MapContainer,
   Marker,
   TileLayer,
@@ -9,8 +10,9 @@ import {
   useMapEvents,
 } from "react-leaflet";
 import L from "leaflet";
-import { Loader2, MapPin, Search } from "lucide-react";
+import { Loader2, MapPin, Navigation, Search } from "lucide-react";
 import "leaflet/dist/leaflet.css";
+import { Button } from "@/components/ui/button";
 
 const markerIcon = L.icon({
   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
@@ -62,11 +64,22 @@ export default function LocationPicker({
   longitude,
   onPick,
   searchPlaceholder = "Search SG Highway, Law Garden, Maninagar…",
+  accuracyMeters,
+  liveTracking = false,
+  liveLocating = false,
+  onUseMyLocation,
+  onToggleLive,
 }: {
   latitude: number;
   longitude: number;
   onPick: (pick: LocationPick) => void;
   searchPlaceholder?: string;
+  /** GPS accuracy radius in meters (shown as circle). */
+  accuracyMeters?: number | null;
+  liveTracking?: boolean;
+  liveLocating?: boolean;
+  onUseMyLocation?: () => void;
+  onToggleLive?: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -143,11 +156,65 @@ export default function LocationPicker({
             <MapPin className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--brand)]" />
           )}
         </div>
+
+        {(onUseMyLocation || onToggleLive) && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {onUseMyLocation ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={liveLocating}
+                onClick={onUseMyLocation}
+                className="rounded-xl"
+              >
+                {liveLocating && !liveTracking ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Navigation className="h-3.5 w-3.5" />
+                )}
+                Use my location
+              </Button>
+            ) : null}
+            {onToggleLive ? (
+              <Button
+                type="button"
+                size="sm"
+                variant={liveTracking ? "default" : "outline"}
+                onClick={onToggleLive}
+                className="rounded-xl"
+              >
+                {liveTracking ? (
+                  <>
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                    </span>
+                    Live GPS on
+                  </>
+                ) : (
+                  <>
+                    <Navigation className="h-3.5 w-3.5" />
+                    Follow live GPS
+                  </>
+                )}
+              </Button>
+            ) : null}
+            {typeof accuracyMeters === "number" ? (
+              <span className="inline-flex items-center rounded-xl border border-[var(--border)] px-2.5 py-1 text-[11px] text-[var(--muted)]">
+                ±{Math.round(accuracyMeters)} m
+              </span>
+            ) : null}
+          </div>
+        )}
+
         {error ? (
           <p className="mt-2 text-xs text-rose-600">{error}</p>
         ) : (
           <p className="mt-2 text-xs text-[var(--muted)]">
-            Search an Ahmedabad place, then confirm the pin on the map (required).
+            {liveTracking
+              ? "Live GPS is updating your pin as you move. Turn it off to search or drag-pin manually."
+              : "Use live GPS, search a place, or tap the map to confirm the pin (required)."}
           </p>
         )}
         {open && results.length > 0 ? (
@@ -183,8 +250,24 @@ export default function LocationPicker({
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
+          {typeof accuracyMeters === "number" && accuracyMeters > 0 ? (
+            <Circle
+              center={[latitude, longitude]}
+              radius={Math.min(accuracyMeters, 400)}
+              pathOptions={{
+                color: "#2bb5ae",
+                fillColor: "#2bb5ae",
+                fillOpacity: 0.15,
+                weight: 1.5,
+              }}
+            />
+          ) : null}
           <Marker position={[latitude, longitude]} icon={markerIcon} />
-          <ClickCapture onPick={onPick} />
+          <ClickCapture
+            onPick={(pick) => {
+              onPick(pick);
+            }}
+          />
           <Recenter latitude={latitude} longitude={longitude} />
         </MapContainer>
       </div>

@@ -10,13 +10,15 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Award, CalendarDays, MapPinned, Sparkles } from "lucide-react";
+import { Award, CalendarDays, Check, Lock, MapPinned, Sparkles } from "lucide-react";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { resolveBadgeIcon } from "@/utils/badge-icons";
+import { cn } from "@/utils/cn";
 import type {
   Badge as BadgeType,
   InfrastructureReport,
@@ -246,18 +248,27 @@ export default function CitizenProfilePage() {
           <div className="mt-4 space-y-3">
             {badges.slice(0, 5).map((badge) => {
               const unlocked = earned.has(badge.id);
+              const Icon = resolveBadgeIcon(badge.icon);
               return (
                 <div
                   key={badge.id}
-                  className={`flex items-center justify-between rounded-2xl border px-3 py-3 ${
+                  className={cn(
+                    "flex items-center justify-between rounded-2xl border px-3 py-3",
                     unlocked
-                      ? "border-[var(--brand)] bg-[var(--brand-soft)]"
-                      : "border-[var(--border)]"
-                  }`}
+                      ? "border-teal-500/35 bg-teal-500/10"
+                      : "border-[var(--border)] bg-white/40 dark:bg-white/5"
+                  )}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-xl" aria-hidden>
-                      {badge.icon}
+                    <span
+                      className={cn(
+                        "grid h-10 w-10 place-items-center rounded-xl",
+                        unlocked
+                          ? "bg-[var(--brand)] text-white"
+                          : "bg-slate-100 text-slate-400 dark:bg-white/5 dark:text-slate-500"
+                      )}
+                    >
+                      <Icon className="h-4 w-4" aria-hidden />
                     </span>
                     <div>
                       <p className="text-sm font-semibold">{badge.name}</p>
@@ -266,9 +277,26 @@ export default function CitizenProfilePage() {
                       </p>
                     </div>
                   </div>
-                  <Badge tone={unlocked ? "success" : "default"}>
-                    {unlocked ? "Earned" : "Locked"}
-                  </Badge>
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                      unlocked
+                        ? "bg-emerald-600 text-white"
+                        : "bg-slate-200/90 text-slate-700 dark:bg-white/10 dark:text-slate-200"
+                    )}
+                  >
+                    {unlocked ? (
+                      <>
+                        <Check className="h-3 w-3" />
+                        Earned
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="h-3 w-3" />
+                        Locked
+                      </>
+                    )}
+                  </span>
                 </div>
               );
             })}

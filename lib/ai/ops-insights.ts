@@ -93,14 +93,14 @@ function performanceLabel(efficiency: number, avgHours: number): string {
   return "Stretched — needs HQ support";
 }
 
-export function buildOpsInsight(input: {
+export async function buildOpsInsight(input: {
   title: string;
   description: string;
   category: string;
   ward?: string;
   departmentId?: DepartmentId;
   priority?: Priority;
-}): OpsInsight {
+}): Promise<OpsInsight> {
   const deptId =
     input.departmentId ?? categoryToDepartment(input.category);
   const dept =
@@ -110,7 +110,7 @@ export function buildOpsInsight(input: {
     (w) => w.name.toLowerCase() === wardName.toLowerCase()
   );
 
-  const all = listReports();
+  const all = await listReports();
   const liveOpen = all.filter(
     (r) => r.departmentId === deptId && openStatuses.has(r.status)
   ).length;
@@ -212,8 +212,8 @@ export function buildOpsInsight(input: {
   };
 }
 
-export function buildDepartmentPulse() {
-  const all = listReports();
+export async function buildDepartmentPulse() {
+  const all = await listReports();
   return departments.map((dept) => {
     const liveOpen = all.filter(
       (r) => r.departmentId === dept.id && openStatuses.has(r.status)
@@ -247,14 +247,16 @@ export function buildDepartmentPulse() {
   });
 }
 
-export function findIssuePatterns(limit = 5): Array<{
-  key: string;
-  ward: string;
-  category: ReportCategory;
-  count: number;
-  sampleTitle: string;
-}> {
-  const all = listReports().filter((r) => openStatuses.has(r.status));
+export async function findIssuePatterns(limit = 5): Promise<
+  Array<{
+    key: string;
+    ward: string;
+    category: ReportCategory;
+    count: number;
+    sampleTitle: string;
+  }>
+> {
+  const all = (await listReports()).filter((r) => openStatuses.has(r.status));
   const map = new Map<string, InfrastructureReport[]>();
   for (const r of all) {
     const key = `${r.ward}::${r.category}`;

@@ -11,10 +11,14 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
+    const [departments, patterns] = await Promise.all([
+      buildDepartmentPulse(),
+      findIssuePatterns(6),
+    ]);
     return ok(
       {
-        departments: buildDepartmentPulse(),
-        patterns: findIssuePatterns(6),
+        departments,
+        patterns,
       },
       "AI ops pulse"
     );
@@ -56,7 +60,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const ops = buildOpsInsight({
+    const ops = await buildOpsInsight({
       title: parsed.data.title,
       description: parsed.data.description,
       category: parsed.data.category,
@@ -65,12 +69,17 @@ export async function POST(request: Request) {
       priority: analysis?.suggestedPriority,
     });
 
+    const [departments, patterns] = await Promise.all([
+      buildDepartmentPulse(),
+      findIssuePatterns(5),
+    ]);
+
     return ok(
       {
         analysis,
         ops,
-        departments: buildDepartmentPulse(),
-        patterns: findIssuePatterns(5),
+        departments,
+        patterns,
       },
       "AI operational prediction ready"
     );

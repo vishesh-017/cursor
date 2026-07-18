@@ -13,15 +13,33 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
+    const [
+      wards,
+      departments,
+      badges,
+      rewards,
+      leaderboard,
+      departmentLeaderboard,
+      wardLeaderboard,
+    ] = await Promise.all([
+      getWards(),
+      getDepartments(),
+      getBadges(),
+      getRewards(),
+      getLeaderboard(),
+      getDepartmentLeaderboard(),
+      getWardLeaderboard(),
+    ]);
+
     return ok(
       {
-        wards: getWards(),
-        departments: getDepartments(),
-        badges: getBadges(),
-        rewards: getRewards(),
-        leaderboard: getLeaderboard(),
-        departmentLeaderboard: getDepartmentLeaderboard(),
-        wardLeaderboard: getWardLeaderboard(),
+        wards,
+        departments,
+        badges,
+        rewards,
+        leaderboard,
+        departmentLeaderboard,
+        wardLeaderboard,
       },
       "Platform meta"
     );

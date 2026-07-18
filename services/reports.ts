@@ -1,7 +1,7 @@
 export {
   createReport,
   getReportById,
-  getReportStats as getDashboardStats,
+  getReportStats,
   listReports,
   updateReport,
 } from "@/services/store";
