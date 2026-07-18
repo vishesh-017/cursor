@@ -320,8 +320,10 @@ export default function AdminDatabasePage() {
                 Seed demo accounts & sample reports
               </p>
               <p className="mt-1">
-                After keys + SQL are in place, click Seed below. Then file a new report
-                on laptop A — laptop B should see it within a few seconds (live poll).
+                Loads a small realistic set: <strong>5 users</strong> and{" "}
+                <strong>5 tickets</strong> (underpass, pothole, water, streetlight,
+                footpath) — not a bulk dump. Then file a new report on one laptop;
+                the other should see it within a few seconds.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button
@@ -334,7 +336,7 @@ export default function AdminDatabasePage() {
                   ) : (
                     <Sprout className="h-4 w-4" />
                   )}
-                  Seed demo data
+                  Seed 5 demo reports
                 </Button>
                 <Button
                   type="button"
