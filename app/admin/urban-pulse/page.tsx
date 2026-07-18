@@ -5,6 +5,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  LabelList,
   Legend,
   Line,
   LineChart,
@@ -68,6 +69,9 @@ export default function AdminUrbanPulsePage() {
   if (error || !pulse) {
     return <EmptyState title="Urban Pulse unavailable" description={error ?? "No data"} />;
   }
+
+  const openMax = Math.max(1, ...pulse.wardComparison.map((w) => w.open));
+  const openDomainMax = Math.max(4, Math.ceil(openMax * 1.25));
 
   return (
     <div className="space-y-6">
@@ -145,19 +149,75 @@ export default function AdminUrbanPulsePage() {
       </div>
 
       <Card className="glass-card">
-        <CardHeader>
+        <CardHeader className="space-y-1">
           <CardTitle>Ward comparison</CardTitle>
+          <p className="text-xs text-[var(--muted)]">
+            Health score uses the left axis (0–100). Open issues use the right
+            axis so small counts stay readable.
+          </p>
         </CardHeader>
         <CardContent className="h-96">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={pulse.wardComparison}>
+            <BarChart
+              data={pulse.wardComparison}
+              margin={{ top: 12, right: 12, left: 0, bottom: 4 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis dataKey="ward" tick={{ fontSize: 11 }} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-              <Tooltip />
+              <YAxis
+                yAxisId="health"
+                domain={[0, 100]}
+                tick={{ fontSize: 11, fill: "#0f766e" }}
+                label={{
+                  value: "Health",
+                  angle: -90,
+                  position: "insideLeft",
+                  style: { fill: "#0f766e", fontSize: 11 },
+                }}
+              />
+              <YAxis
+                yAxisId="open"
+                orientation="right"
+                allowDecimals={false}
+                domain={[0, openDomainMax]}
+                tick={{ fontSize: 11, fill: "#d97706" }}
+                label={{
+                  value: "Open issues",
+                  angle: 90,
+                  position: "insideRight",
+                  style: { fill: "#d97706", fontSize: 11 },
+                }}
+              />
+              <Tooltip
+                formatter={(value, name) => {
+                  const n = typeof value === "number" ? value : Number(value);
+                  if (name === "Health score") return [n, "Health score"];
+                  return [n, "Open issues"];
+                }}
+              />
               <Legend />
-              <Bar dataKey="score" name="Health score" fill="#0f766e" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="open" name="Open issues" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+              <Bar
+                yAxisId="health"
+                dataKey="score"
+                name="Health score"
+                fill="#0f766e"
+                radius={[6, 6, 0, 0]}
+                maxBarSize={36}
+              />
+              <Bar
+                yAxisId="open"
+                dataKey="open"
+                name="Open issues"
+                fill="#f59e0b"
+                radius={[6, 6, 0, 0]}
+                maxBarSize={36}
+              >
+                <LabelList
+                  dataKey="open"
+                  position="top"
+                  className="fill-amber-800 text-[11px] font-semibold"
+                />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
