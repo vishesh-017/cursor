@@ -9,10 +9,17 @@ import {
   mapUser,
   mapWard,
   reportToRow,
+  userToRow,
   type NotificationRow,
   type ReportRow,
   type UserRow,
 } from "@/lib/db/mappers";
+import {
+  buildLeaderboardFromUsers,
+  computeSubmitPoints,
+  resolveBonusPoints,
+  syncBadgesForPoints,
+} from "@/lib/points/criteria";
 import { getDashboardStats as computeStats } from "@/services/analytics";
 import type {
   DepartmentRankingEntry,
@@ -200,6 +207,50 @@ export async function dbGetReportById(id: string) {
   return data ? mapReport(data as ReportRow) : undefined;
 }
 
+async function dbCreditCitizen(
+  userId: string,
+  delta: number,
+  opts?: { reportDelta?: number; resolvedDelta?: number }
+) {
+  if (!delta && !opts?.reportDelta && !opts?.resolvedDelta) return;
+  const user = await dbGetUserById(userId);
+  if (!user || user.role !== "citizen") return;
+
+  user.points = Math.max(0, user.points + delta);
+  if (opts?.reportDelta) {
+    user.reportsCount = Math.max(0, user.reportsCount + opts.reportDelta);
+  }
+  if (opts?.resolvedDelta) {
+    user.resolvedCount = Math.max(0, user.resolvedCount + opts.resolvedDelta);
+  }
+  const catalog = await dbGetBadges();
+  user.badges = syncBadgesForPoints(user, catalog);
+
+  const { error } = await db()
+    .from("users")
+    .update(userToRow(user))
+    .eq("id", userId);
+  if (error) throw error;
+
+  // Keep leaderboard_entries in sync with live citizen balances
+  const citizens = await dbGetCitizens();
+  const board = buildLeaderboardFromUsers(citizens);
+  if (board.length) {
+    await db().from("leaderboard_entries").upsert(
+      board.map((e) => ({
+        user_id: e.userId,
+        name: e.name,
+        ward: e.ward,
+        points: e.points,
+        reports: e.reports,
+        badges: e.badges,
+        rank: e.rank,
+      })),
+      { onConflict: "user_id" }
+    );
+  }
+}
+
 export async function dbCreateReport(
   input: Omit<
     InfrastructureReport,
@@ -207,24 +258,23 @@ export async function dbCreateReport(
   > & { status?: ReportStatus }
 ): Promise<InfrastructureReport> {
   const now = new Date().toISOString();
+  const breakdown = computeSubmitPoints({
+    priority: input.priority,
+    ai: input.ai,
+  });
   const report: InfrastructureReport = {
     ...input,
     id: `rpt-${Date.now()}`,
     status: input.status ?? "submitted",
     createdAt: now,
     updatedAt: now,
-    pointsAwarded:
-      input.priority === "critical"
-        ? 120
-        : input.priority === "high"
-          ? 80
-          : 50,
+    pointsAwarded: breakdown.total,
     timeline: [
       {
         id: `tl-${Date.now()}`,
         at: now,
         title: "Report submitted",
-        description: "Citizen report received via Urbanexus.",
+        description: `Citizen report received via Urbanexus. Points: ${breakdown.summary}.`,
         actor: input.citizenName,
         status: "submitted",
       },
@@ -234,11 +284,13 @@ export async function dbCreateReport(
   const { error } = await db().from("reports").insert(reportToRow(report));
   if (error) throw error;
 
+  await dbCreditCitizen(input.citizenId, breakdown.total, { reportDelta: 1 });
+
   const notification: NotificationRow = {
     id: `n-${Date.now()}`,
     user_id: input.citizenId,
     title: "Report submitted",
-    body: `Your report "${report.title}" is now in the AMC queue.`,
+    body: `Your report "${report.title}" is in the AMC queue · +${breakdown.total} civic points.`,
     created_at: now,
     read: false,
     href: `/citizen/reports/${report.id}`,
@@ -261,6 +313,7 @@ export async function dbUpdateReport(
   const existing = await dbGetReportById(id);
   if (!existing) return null;
 
+  const prevStatus = existing.status;
   const now = new Date().toISOString();
   if (patch.status) existing.status = patch.status;
   if (patch.priority) existing.priority = patch.priority;
@@ -269,6 +322,31 @@ export async function dbUpdateReport(
   if (patch.ai) existing.ai = patch.ai;
   existing.updatedAt = now;
 
+  let pointsNote = "";
+  if (patch.status && patch.status !== prevStatus) {
+    if (patch.status === "resolved" && prevStatus !== "resolved") {
+      const bonus = resolveBonusPoints(existing.ai);
+      if (bonus > 0) {
+        existing.pointsAwarded += bonus;
+        await dbCreditCitizen(existing.citizenId, bonus, { resolvedDelta: 1 });
+        pointsNote = ` · +${bonus} resolve bonus`;
+      } else {
+        await dbCreditCitizen(existing.citizenId, 0, { resolvedDelta: 1 });
+      }
+    }
+    if (patch.status === "rejected" && prevStatus !== "rejected") {
+      const claw = existing.pointsAwarded;
+      if (claw > 0) {
+        await dbCreditCitizen(existing.citizenId, -claw);
+        existing.pointsAwarded = 0;
+        pointsNote = ` · ${claw} points clawed back (rejected)`;
+      }
+      if (prevStatus === "resolved") {
+        await dbCreditCitizen(existing.citizenId, 0, { resolvedDelta: -1 });
+      }
+    }
+  }
+
   if (patch.status || patch.timelineNote) {
     existing.timeline = [
       ...existing.timeline,
@@ -276,7 +354,9 @@ export async function dbUpdateReport(
         id: `tl-${Date.now()}`,
         at: now,
         title: patch.timelineNote ?? `Status updated to ${patch.status}`,
-        description: patch.timelineNote ?? `Report moved to ${patch.status}.`,
+        description:
+          (patch.timelineNote ?? `Report moved to ${patch.status}.`) +
+          pointsNote,
         actor: patch.actor ?? "AMC Ops",
         status: patch.status,
       },
@@ -293,7 +373,7 @@ export async function dbUpdateReport(
     id: `n-${Date.now()}`,
     user_id: existing.citizenId,
     title: "Report update",
-    body: `"${existing.title}" is now ${existing.status.replace("_", " ")}.`,
+    body: `"${existing.title}" is now ${existing.status.replace("_", " ")}${pointsNote}.`,
     created_at: now,
     read: false,
     href: `/citizen/reports/${existing.id}`,
@@ -328,6 +408,14 @@ export async function dbGetRewards() {
 }
 
 export async function dbGetLeaderboard() {
+  // Prefer live citizen balances over stale seed rows
+  try {
+    const citizens = await dbGetCitizens();
+    const live = buildLeaderboardFromUsers(citizens);
+    if (live.length) return live;
+  } catch {
+    // fall through
+  }
   const { data, error } = await db()
     .from("leaderboard_entries")
     .select("*")

@@ -1,5 +1,10 @@
 import { ok, fromError } from "@/lib/api/response";
 import {
+  getPointsCriteriaRows,
+  POINTS_POLICY,
+  pointsPolicyBlurb,
+} from "@/lib/points/criteria";
+import {
   getBadges,
   getDepartmentLeaderboard,
   getDepartments,
@@ -40,6 +45,11 @@ export async function GET() {
         leaderboard,
         departmentLeaderboard,
         wardLeaderboard,
+        pointsCriteria: {
+          policy: POINTS_POLICY,
+          rows: getPointsCriteriaRows(),
+          blurb: pointsPolicyBlurb(),
+        },
       },
       "Platform meta"
     );

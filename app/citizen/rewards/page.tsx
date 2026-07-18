@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { PageHeader } from "@/components/shared/page-header";
+import { PointsCriteriaCard } from "@/components/shared/points-criteria-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -22,30 +23,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { resolveBadgeIcon } from "@/utils/badge-icons";
 import { cn } from "@/utils/cn";
 import type { Badge as BadgeType, Reward, SessionUser, UserProfile } from "@/types";
-
-const achievements = [
-  {
-    id: "monsoon",
-    title: "Monsoon Sentinel",
-    blurb: "Flag drainage overflows before peak monsoon hours in your ward.",
-    target: 3,
-    metricKey: "resolved" as const,
-  },
-  {
-    id: "ward",
-    title: "Ward Guardian",
-    blurb: "Keep Vastrapur / Thaltej corridors visible with verified tickets.",
-    target: 5,
-    metricKey: "reports" as const,
-  },
-  {
-    id: "streak",
-    title: "Civic Streak",
-    blurb: "Sustain reporting across consecutive AMC inspection weeks.",
-    target: 800,
-    metricKey: "points" as const,
-  },
-];
 
 export default function CitizenRewardsPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -152,6 +129,8 @@ export default function CitizenRewardsPage() {
         description="Earn points for verified reports across Ahmedabad wards. Redeem AMTS passes, Riverfront garden entry, and green-cover workshop seats."
       />
 
+      <PointsCriteriaCard />
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Points balance"
@@ -209,18 +188,39 @@ export default function CitizenRewardsPage() {
         <div className="mb-3 flex items-center gap-2 text-[var(--brand)]">
           <Sparkles className="h-4 w-4" />
           <h2 className="font-display text-xl font-semibold text-[var(--foreground)]">
-            Achievement cards
+            Live progress quests
           </h2>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
-          {achievements.map((item, index) => {
-            const current =
-              item.metricKey === "points"
-                ? points
-                : item.metricKey === "reports"
-                  ? (profile?.reportsCount ?? 0)
-                  : (profile?.resolvedCount ?? 0);
-            const pct = Math.min(100, Math.round((current / item.target) * 100));
+          {[
+            {
+              id: "resolved",
+              title: "Resolved tickets",
+              blurb: "AMC-closed genuine reports from your filings.",
+              current: profile?.resolvedCount ?? 0,
+              target: 3,
+            },
+            {
+              id: "reports",
+              title: "Reports filed",
+              blurb: "Total civic tickets you submitted citywide.",
+              current: profile?.reportsCount ?? 0,
+              target: 5,
+            },
+            {
+              id: "points",
+              title: "Points balance",
+              blurb: nextBadge
+                ? `Next badge at ${nextBadge.pointsRequired} pts`
+                : "All point-threshold badges unlocked",
+              current: points,
+              target: nextBadge?.pointsRequired ?? Math.max(points, 1),
+            },
+          ].map((item, index) => {
+            const pct = Math.min(
+              100,
+              Math.round((item.current / Math.max(1, item.target)) * 100)
+            );
             return (
               <motion.div
                 key={item.id}
@@ -230,13 +230,15 @@ export default function CitizenRewardsPage() {
                 className="glass-card p-5"
               >
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
-                  Quest
+                  Live quest
                 </p>
-                <h3 className="mt-2 font-display text-lg font-semibold">{item.title}</h3>
+                <h3 className="mt-2 font-display text-lg font-semibold">
+                  {item.title}
+                </h3>
                 <p className="mt-2 text-sm text-[var(--muted)]">{item.blurb}</p>
                 <div className="mt-4 flex items-center justify-between text-xs text-[var(--muted)]">
                   <span>
-                    {current} / {item.target}
+                    {item.current} / {item.target}
                   </span>
                   <span>{pct}%</span>
                 </div>

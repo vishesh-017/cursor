@@ -12,6 +12,12 @@ import {
   loadPersistedStore,
   savePersistedStore,
 } from "@/services/memory-persist";
+import {
+  buildLeaderboardFromUsers,
+  computeSubmitPoints,
+  resolveBonusPoints,
+  syncBadgesForPoints,
+} from "@/lib/points/criteria";
 import type {
   DepartmentRankingEntry,
   InfrastructureReport,
@@ -234,6 +240,25 @@ export function memoryGetReportById(id: string) {
   );
 }
 
+function creditCitizen(
+  store: UrbanexusStore,
+  userId: string,
+  delta: number,
+  opts?: { reportDelta?: number; resolvedDelta?: number }
+) {
+  const user = store.users.find((u) => u.id === userId);
+  if (!user || user.role !== "citizen") return;
+  if (!delta && !opts?.reportDelta && !opts?.resolvedDelta) return;
+  user.points = Math.max(0, user.points + delta);
+  if (opts?.reportDelta) {
+    user.reportsCount = Math.max(0, user.reportsCount + opts.reportDelta);
+  }
+  if (opts?.resolvedDelta) {
+    user.resolvedCount = Math.max(0, user.resolvedCount + opts.resolvedDelta);
+  }
+  user.badges = syncBadgesForPoints(user, badges);
+}
+
 export function memoryCreateReport(
   input: Omit<
     InfrastructureReport,
@@ -241,24 +266,23 @@ export function memoryCreateReport(
   > & { status?: ReportStatus }
 ): InfrastructureReport {
   const now = new Date().toISOString();
+  const breakdown = computeSubmitPoints({
+    priority: input.priority,
+    ai: input.ai,
+  });
   const report: InfrastructureReport = {
     ...input,
     id: `rpt-${Date.now()}`,
     status: input.status ?? "submitted",
     createdAt: now,
     updatedAt: now,
-    pointsAwarded:
-      input.priority === "critical"
-        ? 120
-        : input.priority === "high"
-          ? 80
-          : 50,
+    pointsAwarded: breakdown.total,
     timeline: [
       {
         id: `tl-${Date.now()}`,
         at: now,
         title: "Report submitted",
-        description: "Citizen report received via Urbanexus.",
+        description: `Citizen report received via Urbanexus. Points: ${breakdown.summary}.`,
         actor: input.citizenName,
         status: "submitted",
       },
@@ -266,12 +290,13 @@ export function memoryCreateReport(
   };
   const store = getStore();
   store.reports.unshift(report);
+  creditCitizen(store, input.citizenId, breakdown.total, { reportDelta: 1 });
 
   store.notifications.unshift({
     id: `n-${Date.now()}`,
     userId: input.citizenId,
     title: "Report submitted",
-    body: `Your report "${report.title}" is now in the AMC queue.`,
+    body: `Your report "${report.title}" is in the AMC queue · +${breakdown.total} civic points.`,
     createdAt: now,
     read: false,
     href: `/citizen/reports/${report.id}`,
@@ -290,9 +315,11 @@ export function memoryUpdateReport(
     >
   > & { timelineNote?: string; actor?: string }
 ) {
-  const report = getStore().reports.find((r) => r.id === id);
+  const store = getStore();
+  const report = store.reports.find((r) => r.id === id);
   if (!report) return null;
 
+  const prevStatus = report.status;
   const now = new Date().toISOString();
   if (patch.status) report.status = patch.status;
   if (patch.priority) report.priority = patch.priority;
@@ -301,23 +328,48 @@ export function memoryUpdateReport(
   if (patch.ai) report.ai = patch.ai;
   report.updatedAt = now;
 
+  let pointsNote = "";
+  if (patch.status && patch.status !== prevStatus) {
+    if (patch.status === "resolved" && prevStatus !== "resolved") {
+      const bonus = resolveBonusPoints(report.ai);
+      if (bonus > 0) {
+        report.pointsAwarded += bonus;
+        creditCitizen(store, report.citizenId, bonus, { resolvedDelta: 1 });
+        pointsNote = ` · +${bonus} resolve bonus`;
+      } else {
+        creditCitizen(store, report.citizenId, 0, { resolvedDelta: 1 });
+      }
+    }
+    if (patch.status === "rejected" && prevStatus !== "rejected") {
+      const claw = report.pointsAwarded;
+      if (claw > 0) {
+        creditCitizen(store, report.citizenId, -claw);
+        report.pointsAwarded = 0;
+        pointsNote = ` · ${claw} points clawed back (rejected)`;
+      }
+      if (prevStatus === "resolved") {
+        creditCitizen(store, report.citizenId, 0, { resolvedDelta: -1 });
+      }
+    }
+  }
+
   if (patch.status || patch.timelineNote) {
     report.timeline.push({
       id: `tl-${Date.now()}`,
       at: now,
       title: patch.timelineNote ?? `Status updated to ${patch.status}`,
-      description: patch.timelineNote ?? `Report moved to ${patch.status}.`,
+      description:
+        (patch.timelineNote ?? `Report moved to ${patch.status}.`) + pointsNote,
       actor: patch.actor ?? "AMC Ops",
       status: patch.status,
     });
   }
 
-  const store = getStore();
   store.notifications.unshift({
     id: `n-${Date.now()}`,
     userId: report.citizenId,
     title: "Report update",
-    body: `"${report.title}" is now ${report.status.replace("_", " ")}.`,
+    body: `"${report.title}" is now ${report.status.replace("_", " ")}${pointsNote}.`,
     createdAt: now,
     read: false,
     href: `/citizen/reports/${report.id}`,
@@ -344,6 +396,8 @@ export function memoryGetRewards() {
 }
 
 export function memoryGetLeaderboard() {
+  const dynamic = buildLeaderboardFromUsers(getStore().users);
+  if (dynamic.length) return dynamic;
   return leaderboard;
 }
 
@@ -405,8 +459,8 @@ export function memoryGetWardLeaderboard(): WardRankingEntry[] {
       const openIssues = allReports.filter(
         (r) => r.wardId === ward.id && openStatuses.has(r.status)
       ).length;
-      const citizenPoints = leaderboard
-        .filter((e) => e.ward === ward.name)
+      const citizenPoints = getStore()
+        .users.filter((u) => u.role === "citizen" && u.ward === ward.name)
         .reduce((sum, e) => sum + e.points, 0);
       const score = Math.round(
         ward.healthScore * 0.6 +

@@ -39,7 +39,7 @@ const APP_FAQ: Array<{ match: RegExp; answer: string }> = [
   {
     match: /points|reward|leaderboard/i,
     answer:
-      "Citizens earn civic points when a report enters the AMC queue. Check Rewards and Leaderboard in the citizen sidebar for your balance and ranking.",
+      "Civic points: Critical +120, High +80, Medium +50, Low +25 when a report enters the AMC queue. Clear site photo +10. AMC resolve +25. Rejected/fake reports get 0 (points clawed back). See Rewards for the full criteria table and Leaderboard for live ranks.",
   },
 ];
 

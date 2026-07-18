@@ -26,6 +26,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import type {
   InfrastructureReport,
+  LeaderboardEntry,
   NotificationItem,
   SessionUser,
   UrbanPulseMetrics,
@@ -39,6 +40,7 @@ export default function CitizenDashboardPage() {
   const [nearby, setNearby] = useState<InfrastructureReport[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [pulse, setPulse] = useState<UrbanPulseMetrics | null>(null);
+  const [rank, setRank] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -54,14 +56,16 @@ export default function CitizenDashboardPage() {
         if (!meRes.ok || !meJson.success || !meJson.data) throw new Error("Session failed");
 
         const citizenId = meJson.data.user.id;
-        const [reportsRes, allRes, notifRes, analyticsRes] = await Promise.all([
-          fetch(`/api/reports?citizenId=${encodeURIComponent(citizenId)}`, {
-            cache: "no-store",
-          }),
-          fetch("/api/reports", { cache: "no-store" }),
-          fetch("/api/notifications", { cache: "no-store" }),
-          fetch("/api/analytics", { cache: "no-store" }),
-        ]);
+        const [reportsRes, allRes, notifRes, analyticsRes, metaRes] =
+          await Promise.all([
+            fetch(`/api/reports?citizenId=${encodeURIComponent(citizenId)}`, {
+              cache: "no-store",
+            }),
+            fetch("/api/reports", { cache: "no-store" }),
+            fetch("/api/notifications", { cache: "no-store" }),
+            fetch("/api/analytics", { cache: "no-store" }),
+            fetch("/api/meta", { cache: "no-store" }),
+          ]);
 
         const myReports = (await reportsRes.json()) as {
           success: boolean;
@@ -79,6 +83,10 @@ export default function CitizenDashboardPage() {
           success: boolean;
           data?: { urbanPulse: UrbanPulseMetrics };
         };
+        const metaJson = (await metaRes.json()) as {
+          success?: boolean;
+          data?: { leaderboard?: LeaderboardEntry[] };
+        };
 
         if (!active) return;
         setUser(meJson.data.user);
@@ -86,6 +94,10 @@ export default function CitizenDashboardPage() {
         setReports(myReports.data?.reports ?? []);
         setNotifications(notifJson.data?.notifications ?? []);
         setPulse(analyticsJson.data?.urbanPulse ?? null);
+        const entry = metaJson.data?.leaderboard?.find(
+          (e) => e.userId === citizenId
+        );
+        setRank(entry?.rank ?? null);
 
         const ward = meJson.data.user.ward;
         setNearby(
@@ -105,7 +117,10 @@ export default function CitizenDashboardPage() {
 
   const resolved = reports.filter((r) => r.status === "resolved").length;
   const open = reports.filter((r) => r.status !== "resolved" && r.status !== "rejected").length;
-  const impact = profile ? Math.min(99, Math.round(profile.points / 15 + resolved * 4)) : 72;
+  const livePoints =
+    profile?.points ??
+    reports.reduce((sum, r) => sum + (r.pointsAwarded ?? 0), 0);
+  const impact = Math.min(99, Math.round(livePoints / 15 + resolved * 4));
   const aiDetections = reports.filter((r) => r.ai).slice(0, 3);
   const chart = pulse?.monthlyTrends ?? [
     { month: "Feb", opened: 2, closed: 1 },
@@ -197,17 +212,17 @@ export default function CitizenDashboardPage() {
           delay={0.1}
         />
         <KpiCard
-          label="Rewards earned"
-          value={profile?.points ?? 0}
+          label="Civic points"
+          value={livePoints}
           icon={Award}
-          hint={`${profile?.badges.length ?? 0} badges unlocked`}
+          hint={`${profile?.badges.length ?? 0} badges · see Rewards for criteria`}
           delay={0.15}
         />
         <KpiCard
           label="Leaderboard rank"
-          value={profile && profile.points >= 1200 ? "#1" : profile && profile.points >= 800 ? "#2" : "#4"}
+          value={rank ? `#${rank}` : "—"}
           icon={Trophy}
-          hint={`${user?.ward ?? "Ward"} standing`}
+          hint={`${user?.ward ?? "Ward"} · live city ranking`}
           delay={0.2}
         />
       </div>

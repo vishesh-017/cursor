@@ -18,6 +18,11 @@ import { Progress } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { InfrastructureReport, ReportStatus, SessionUser } from "@/types";
+import {
+  computeSubmitPoints,
+  POINTS_POLICY,
+  resolveBonusPoints,
+} from "@/lib/points/criteria";
 import { cacheReport, getCachedReport } from "@/utils/report-cache";
 import { statusLabel } from "@/utils/status";
 
@@ -312,9 +317,41 @@ export default function CitizenReportDetailPage() {
             className="mt-2"
             tone="success"
           />
-          <p className="mt-2 text-xs text-[var(--muted)]">
-            Awarded when your report enters the AMC queue
-          </p>
+          {(() => {
+            const submit = computeSubmitPoints({
+              priority: report.priority,
+              ai: report.ai,
+            });
+            const resolvePts =
+              report.status === "resolved"
+                ? resolveBonusPoints(report.ai)
+                : 0;
+            return (
+              <ul className="mt-2 space-y-0.5 text-[11px] text-[var(--muted)]">
+                {submit.lines.map((line) => (
+                  <li key={line.label}>
+                    {line.label}: +{line.points}
+                  </li>
+                ))}
+                {resolvePts > 0 ? (
+                  <li>AMC resolved bonus: +{resolvePts}</li>
+                ) : null}
+                {report.status === "rejected" ? (
+                  <li className="text-rose-700 dark:text-rose-300">
+                    Rejected — points clawed back (0 kept)
+                  </li>
+                ) : null}
+                <li className="pt-1 text-[10px]">
+                  Policy: C{POINTS_POLICY.submitByPriority.critical}/H
+                  {POINTS_POLICY.submitByPriority.high}/M
+                  {POINTS_POLICY.submitByPriority.medium}/L
+                  {POINTS_POLICY.submitByPriority.low} · photo +
+                  {POINTS_POLICY.photoRelevantBonus} · resolve +
+                  {POINTS_POLICY.resolveBonus}
+                </li>
+              </ul>
+            );
+          })()}
         </div>
         <div className="glass-card p-5">
           <div className="flex items-center justify-between text-sm">
