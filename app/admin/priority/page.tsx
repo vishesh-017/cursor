@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -21,6 +21,7 @@ import { Badge, priorityTone, statusTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLivePoll } from "@/hooks/use-live-poll";
 import type { InfrastructureReport } from "@/types";
 import { aiQueueScore, sortByAiPriority } from "@/utils/ai-priority";
 import { cn } from "@/utils/cn";
@@ -41,39 +42,53 @@ export default function AdminPriorityPage() {
   const [reports, setReports] = useState<InfrastructureReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [liveSync, setLiveSync] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-
-    async function load() {
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) {
       setLoading(true);
       setError(null);
+    }
+    try {
+      const res = await fetch("/api/reports", { cache: "no-store" });
+      const json = (await res.json()) as {
+        success: boolean;
+        message?: string;
+        data?: { reports: InfrastructureReport[] };
+      };
+      if (!res.ok || !json.success || !json.data) {
+        throw new Error(json.message || "Failed to load queue");
+      }
+      setReports(json.data.reports);
+    } catch (err) {
+      if (!opts?.silent) {
+        setError(err instanceof Error ? err.message : "Failed to load");
+      }
+    } finally {
+      if (!opts?.silent) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+    void (async () => {
       try {
-        const res = await fetch("/api/reports", { cache: "no-store" });
+        const res = await fetch("/api/db/status", { cache: "no-store" });
         const json = (await res.json()) as {
           success: boolean;
-          message?: string;
-          data?: { reports: InfrastructureReport[] };
+          data?: { synced?: boolean };
         };
-        if (!res.ok || !json.success || !json.data) {
-          throw new Error(json.message || "Failed to load queue");
-        }
-        if (!active) return;
-        setReports(json.data.reports);
-      } catch (err) {
-        if (active) {
-          setError(err instanceof Error ? err.message : "Failed to load");
-        }
-      } finally {
-        if (active) setLoading(false);
+        if (json.success && json.data?.synced) setLiveSync(true);
+      } catch {
+        /* ignore */
       }
-    }
+    })();
+  }, [load]);
 
-    void load();
-    return () => {
-      active = false;
-    };
-  }, []);
+  useLivePoll(() => load({ silent: true }), {
+    intervalMs: 8000,
+    enabled: liveSync,
+  });
 
   const queue = useMemo(
     () =>

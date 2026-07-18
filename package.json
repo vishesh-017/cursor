@@ -6,7 +6,9 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:status": "curl -s http://localhost:3000/api/db/status",
+    "db:seed": "curl -s -X POST http://localhost:3000/api/db/seed -H \"Content-Type: application/json\" -d \"{}\""
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FileText,
   RefreshCw,
@@ -13,6 +13,7 @@ import { ReportTable } from "@/components/shared/report-table";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLivePoll } from "@/hooks/use-live-poll";
 import { cn } from "@/utils/cn";
 import type {
   Department,
@@ -57,6 +58,7 @@ export default function AdminReportsPage() {
   const [deskScope, setDeskScope] = useState<
     { type: "city" } | { type: "ward"; wards: string[] } | null
   >(null);
+  const [liveSync, setLiveSync] = useState(false);
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -77,21 +79,26 @@ export default function AdminReportsPage() {
       const metaRes = await fetch("/api/meta", { cache: "no-store" });
       const metaJson = (await metaRes.json()) as {
         success: boolean;
-        data?: { wards: Ward[]; departments: Department[] };
+        data?: {
+          wards: Ward[];
+          departments: Department[];
+          storage?: { synced?: boolean };
+        };
       };
       if (metaRes.ok && metaJson.success && metaJson.data) {
         setWards(metaJson.data.wards);
         setDepartments(metaJson.data.departments);
+        setLiveSync(Boolean(metaJson.data.storage?.synced));
       }
     })();
   }, []);
 
-  useEffect(() => {
-    let active = true;
-
-    async function load() {
-      setLoading(true);
-      setError(null);
+  const loadReports = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (!opts?.silent) {
+        setLoading(true);
+        setError(null);
+      }
       try {
         const res = await fetch(
           `/api/reports${queryString ? `?${queryString}` : ""}`,
@@ -108,24 +115,27 @@ export default function AdminReportsPage() {
         if (!res.ok || !json.success || !json.data) {
           throw new Error(json.message || "Failed to load reports");
         }
-        if (active) {
-          setReports(json.data.reports);
-          if (json.data.scope) setDeskScope(json.data.scope);
-        }
+        setReports(json.data.reports);
+        if (json.data.scope) setDeskScope(json.data.scope);
       } catch (err) {
-        if (active) {
+        if (!opts?.silent) {
           setError(err instanceof Error ? err.message : "Failed to load");
         }
       } finally {
-        if (active) setLoading(false);
+        if (!opts?.silent) setLoading(false);
       }
-    }
+    },
+    [queryString]
+  );
 
-    void load();
-    return () => {
-      active = false;
-    };
-  }, [queryString]);
+  useEffect(() => {
+    void loadReports();
+  }, [loadReports]);
+
+  useLivePoll(() => loadReports({ silent: true }), {
+    intervalMs: 8000,
+    enabled: liveSync,
+  });
 
   async function updateStatus(id: string, nextStatus: ReportStatus) {
     setUpdatingId(id);

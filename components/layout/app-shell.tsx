@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleDot,
+  Database,
   FileText,
   HeartPulse,
   Home,
@@ -67,6 +68,7 @@ const iconMap: Record<string, LucideIcon> = {
   Users,
   Sparkles,
   MessageCircle,
+  Database,
 };
 
 export function resolveNavIcon(name: string): LucideIcon {

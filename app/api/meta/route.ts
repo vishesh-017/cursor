@@ -1,4 +1,6 @@
 import { ok, fromError } from "@/lib/api/response";
+import { isDatabaseConfigured } from "@/lib/db/config";
+import { getEnvStatus } from "@/lib/env";
 import {
   getPointsCriteriaRows,
   POINTS_POLICY,
@@ -36,6 +38,8 @@ export async function GET() {
       getWardLeaderboard(),
     ]);
 
+    const database = isDatabaseConfigured();
+
     return ok(
       {
         wards,
@@ -49,6 +53,11 @@ export async function GET() {
           policy: POINTS_POLICY,
           rows: getPointsCriteriaRows(),
           blurb: pointsPolicyBlurb(),
+        },
+        storage: {
+          mode: database ? ("supabase" as const) : ("local" as const),
+          synced: database,
+          env: getEnvStatus(),
         },
       },
       "Platform meta"

@@ -39,6 +39,20 @@ Set `EXA_API_KEY` in Vercel Project Settings → Environment Variables. Never co
 
 The app still builds without keys; Exa routes degrade gracefully with heuristic triage when offline.
 
+## Shared database (multi-laptop)
+
+Without Supabase, each laptop uses **local memory** — a report filed on one machine will not appear on another.
+
+To sync:
+
+1. Create a free project at [supabase.com](https://supabase.com/dashboard)
+2. Paste **the same** URL + anon key + service role key into `.env.local` on every laptop
+3. Run `supabase/migrations/001_urbanexus.sql` in the Supabase SQL Editor
+4. Restart `npm run dev`, open **Admin → Database**, click **Seed demo data**
+5. File a report on laptop A — laptop B’s Reports / Priority Queue refresh every ~8s
+
+Status API: `GET /api/db/status` · Seed: `POST /api/db/seed`
+
 ## Portals
 
 - `/login` — authentication

@@ -24,6 +24,7 @@ export const adminNav = [
   { href: "/admin/wards", label: "Ward Performance", icon: "MapPinned" },
   { href: "/admin/departments", label: "Departments", icon: "Building2" },
   { href: "/admin/citizens", label: "Citizens", icon: "Users" },
+  { href: "/admin/database", label: "Database", icon: "Database" },
   { href: "/map", label: "City Map", icon: "Map" },
 ];
 
