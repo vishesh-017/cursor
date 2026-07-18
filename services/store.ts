@@ -9,11 +9,13 @@ import {
   wards,
 } from "@/data/seed";
 import type {
+  DepartmentRankingEntry,
   InfrastructureReport,
   NotificationItem,
   ReportStatus,
   UrbanPulseMetrics,
   UserProfile,
+  WardRankingEntry,
 } from "@/types";
 import { getDashboardStats as computeStats } from "@/services/analytics";
 
@@ -181,6 +183,67 @@ export function getRewards() {
 
 export function getLeaderboard() {
   return leaderboard;
+}
+
+export function getDepartmentLeaderboard(): DepartmentRankingEntry[] {
+  return [...departments]
+    .map((dept) => {
+      const score = Math.round(
+        dept.efficiency * 0.55 +
+          Math.min(100, (dept.resolvedIssues / Math.max(1, dept.resolvedIssues + dept.openIssues)) * 100) *
+            0.35 +
+          Math.max(0, 40 - dept.avgResolutionHours / 3)
+      );
+      return {
+        departmentId: dept.id,
+        name: dept.name,
+        head: dept.head,
+        score: Math.min(99, Math.max(40, score)),
+        openIssues: dept.openIssues,
+        resolvedIssues: dept.resolvedIssues,
+        avgResolutionHours: dept.avgResolutionHours,
+        efficiency: dept.efficiency,
+        rank: 0,
+      };
+    })
+    .sort((a, b) => b.score - a.score)
+    .map((entry, index) => ({ ...entry, rank: index + 1 }));
+}
+
+export function getWardLeaderboard(): WardRankingEntry[] {
+  const openStatuses = new Set([
+    "submitted",
+    "acknowledged",
+    "assigned",
+    "in_progress",
+  ]);
+  const allReports = listReports();
+
+  return [...wards]
+    .map((ward) => {
+      const openIssues = allReports.filter(
+        (r) => r.wardId === ward.id && openStatuses.has(r.status)
+      ).length;
+      const citizenPoints = leaderboard
+        .filter((e) => e.ward === ward.name)
+        .reduce((sum, e) => sum + e.points, 0);
+      const score = Math.round(
+        ward.healthScore * 0.6 +
+          Math.max(0, 40 - openIssues * 2) +
+          Math.min(20, citizenPoints / 100)
+      );
+      return {
+        ward: ward.name,
+        zone: ward.zone,
+        score: Math.min(99, Math.max(35, score)),
+        openIssues,
+        healthScore: ward.healthScore,
+        citizenPoints,
+        rank: 0,
+      };
+    })
+    .sort((a, b) => b.score - a.score)
+    .map((entry, index) => ({ ...entry, rank: index + 1 }));
 }
 
 export function getNotifications(userId: string) {

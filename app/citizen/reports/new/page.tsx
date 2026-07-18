@@ -70,6 +70,8 @@ export default function NewCitizenReportPage() {
   const [address, setAddress] = useState("Near Vastrapur Lake, Ahmedabad");
   const [latitude, setLatitude] = useState(23.0387);
   const [longitude, setLongitude] = useState(72.5289);
+  const [locationPinned, setLocationPinned] = useState(false);
+  const [roadName, setRoadName] = useState("");
   const [previews, setPreviews] = useState<PreviewFile[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
@@ -211,7 +213,39 @@ export default function NewCitizenReportPage() {
     toast.message("Fill authenticity, issue, and priority yourself — no AI required");
   }
 
+  function applyLocationPick(pick: {
+    latitude: number;
+    longitude: number;
+    label?: string;
+  }) {
+    setLatitude(Number(pick.latitude.toFixed(5)));
+    setLongitude(Number(pick.longitude.toFixed(5)));
+    setLocationPinned(true);
+    if (pick.label) {
+      const short = pick.label.split(",").slice(0, 3).join(",").trim();
+      setAddress(short);
+      setRoadName(pick.label.split(",")[0]?.trim() ?? "");
+      const match = wards.find((w) =>
+        pick.label!.toLowerCase().includes(w.name.toLowerCase())
+      );
+      if (match) {
+        setWardName(match.name);
+      }
+    }
+  }
+
   async function submitReport() {
+    if (!locationPinned) {
+      setStep(3);
+      toast.error("Map location is compulsory — search or pin the exact spot");
+      return;
+    }
+    if (address.trim().length < 4) {
+      setStep(3);
+      toast.error("Add a landmark / address for the pinned location");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const ward = wards.find((w) => w.name === wardName);
@@ -224,7 +258,9 @@ export default function NewCitizenReportPage() {
           category,
           ward: wardName,
           wardId: ward?.id,
-          address,
+          address: roadName
+            ? `${address}${address.includes(roadName) ? "" : ` · ${roadName}`}`
+            : address,
           latitude,
           longitude,
           priority: analysis?.suggestedPriority ?? priority,
@@ -252,10 +288,15 @@ export default function NewCitizenReportPage() {
   const canAdvance = useMemo(() => {
     if (step === 1) return true;
     if (step === 2) {
-      return title.trim().length >= 4 && description.trim().length >= 10 && Boolean(wardName);
+      return (
+        title.trim().length >= 4 &&
+        description.trim().length >= 10 &&
+        Boolean(wardName) &&
+        address.trim().length >= 4
+      );
     }
-    return latitude !== 0 && longitude !== 0;
-  }, [step, title, description, wardName, latitude, longitude]);
+    return locationPinned && address.trim().length >= 4;
+  }, [step, title, description, wardName, address, locationPinned]);
 
   const selectClass =
     "flex h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface-solid)] px-3 text-sm text-[var(--foreground)] outline-none focus:ring-2 focus:ring-[var(--ring)]";
@@ -497,15 +538,22 @@ export default function NewCitizenReportPage() {
 
           {step === 3 ? (
             <div className="space-y-4">
-              <div>
-                <h2 className="font-display text-xl font-semibold">Drop a map pin</h2>
-                <p className="mt-1 text-sm text-[var(--muted)]">
-                  Click the map to set coordinates. Ward and landmark stay visible for
-                  crew dispatch.
-                </p>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-display text-xl font-semibold">
+                    Map location (compulsory)
+                  </h2>
+                  <p className="mt-1 text-sm text-[var(--muted)]">
+                    Search an Ahmedabad place, select it, then fine-tune the pin.
+                    Reports cannot be submitted without a confirmed map location.
+                  </p>
+                </div>
+                <Badge tone={locationPinned ? "success" : "warning"}>
+                  {locationPinned ? "Location confirmed" : "Pin required"}
+                </Badge>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 <div className="surface-card p-3">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
                     Latitude
@@ -524,6 +572,14 @@ export default function NewCitizenReportPage() {
                   </p>
                   <p className="mt-1 font-semibold">{wardName}</p>
                 </div>
+                <div className="surface-card p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                    Road / place
+                  </p>
+                  <p className="mt-1 truncate text-sm font-semibold">
+                    {roadName || "Select from search"}
+                  </p>
+                </div>
                 <div className="surface-card p-3 sm:col-span-2 lg:col-span-1">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
                     Landmark
@@ -532,16 +588,30 @@ export default function NewCitizenReportPage() {
                 </div>
               </div>
 
-              <div className="h-72 overflow-hidden rounded-2xl border border-[var(--border)]">
+              <div className="space-y-2">
+                <Label htmlFor="address-step3">Landmark / address</Label>
+                <Input
+                  id="address-step3"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Confirm landmark near the pin"
+                  required
+                />
+              </div>
+
+              <div className="h-[420px] overflow-hidden rounded-2xl border border-[var(--border)]">
                 <LocationPicker
                   latitude={latitude}
                   longitude={longitude}
-                  onPick={(lat, lng) => {
-                    setLatitude(Number(lat.toFixed(5)));
-                    setLongitude(Number(lng.toFixed(5)));
-                  }}
+                  onPick={applyLocationPick}
                 />
               </div>
+
+              {!locationPinned ? (
+                <p className="text-sm text-amber-700 dark:text-amber-300">
+                  Search a location or click the map to drop your pin before submitting.
+                </p>
+              ) : null}
             </div>
           ) : null}
 
@@ -565,7 +635,11 @@ export default function NewCitizenReportPage() {
                 <ChevronRight className="h-4 w-4" />
               </Button>
             ) : (
-              <Badge tone="brand">Ready for Exa triage & submit</Badge>
+              <Badge tone={locationPinned ? "success" : "warning"}>
+                {locationPinned
+                  ? "Location ready — submit when done"
+                  : "Confirm map pin to continue"}
+              </Badge>
             )}
           </div>
         </div>
@@ -583,8 +657,8 @@ export default function NewCitizenReportPage() {
               <p className="text-sm font-semibold">AMC actions</p>
             </div>
             <p className="text-xs text-[var(--muted)]">
-              Exa checks if the report looks true or fake, scores priority, and
-              detects the issue — or fill those fields yourself with no AI.
+              Location pin is compulsory. Exa checks authenticity and priority —
+              or write those scores yourself.
             </p>
             <Button
               type="button"
@@ -606,10 +680,19 @@ export default function NewCitizenReportPage() {
             <Button
               type="button"
               className="w-full"
-              disabled={submitting || title.trim().length < 4}
+              disabled={
+                submitting ||
+                title.trim().length < 4 ||
+                !locationPinned ||
+                address.trim().length < 4
+              }
               onClick={() => void submitReport()}
             >
-              {submitting ? "Submitting…" : "Submit to AMC"}
+              {submitting
+                ? "Submitting…"
+                : !locationPinned
+                  ? "Pin location to submit"
+                  : "Submit to AMC"}
             </Button>
           </div>
         </aside>

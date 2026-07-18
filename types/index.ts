@@ -154,6 +154,28 @@ export interface LeaderboardEntry {
   badges: number;
 }
 
+export interface DepartmentRankingEntry {
+  rank: number;
+  departmentId: DepartmentId;
+  name: string;
+  head: string;
+  score: number;
+  openIssues: number;
+  resolvedIssues: number;
+  avgResolutionHours: number;
+  efficiency: number;
+}
+
+export interface WardRankingEntry {
+  rank: number;
+  ward: string;
+  zone: string;
+  score: number;
+  openIssues: number;
+  healthScore: number;
+  citizenPoints: number;
+}
+
 export interface DashboardStats {
   totalReports: number;
   openReports: number;

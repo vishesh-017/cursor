@@ -1,9 +1,11 @@
 import { ok, fromError } from "@/lib/api/response";
 import {
   getBadges,
+  getDepartmentLeaderboard,
   getDepartments,
   getLeaderboard,
   getRewards,
+  getWardLeaderboard,
   getWards,
 } from "@/services/store";
 
@@ -18,6 +20,8 @@ export async function GET() {
         badges: getBadges(),
         rewards: getRewards(),
         leaderboard: getLeaderboard(),
+        departmentLeaderboard: getDepartmentLeaderboard(),
+        wardLeaderboard: getWardLeaderboard(),
       },
       "Platform meta"
     );
