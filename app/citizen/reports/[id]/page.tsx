@@ -8,17 +8,17 @@ import {
   Clock3,
   MessageSquare,
   ShieldCheck,
-  Sparkles,
   TriangleAlert,
 } from "lucide-react";
-import { AiAnalysisPanel } from "@/components/report/ai-analysis-panel";
+import { AiVsActualPanel } from "@/components/report/ai-vs-actual";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge, priorityTone, statusTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ConfidenceMeter, Progress } from "@/components/ui/progress";
+import { Progress } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { InfrastructureReport, ReportStatus } from "@/types";
+import { statusLabel } from "@/utils/status";
 
 type NearbyReport = InfrastructureReport & { distanceKm: number };
 
@@ -143,19 +143,10 @@ export default function CitizenReportDetailPage() {
   const stepIndex = STATUS_STEPS.indexOf(
     report.status === "rejected" ? "submitted" : report.status
   );
-  const confidence = report.ai?.confidence ?? 0.72;
-  const trustScore = Math.min(
-    99,
-    Math.round(confidence * 100 * 0.55 + (report.pointsAwarded > 0 ? 28 : 18) + 12)
+  const statusProgress = Math.max(
+    8,
+    Math.round(((Math.max(stepIndex, 0) + 1) / STATUS_STEPS.length) * 100)
   );
-  const priorityScore =
-    report.priority === "critical"
-      ? 96
-      : report.priority === "high"
-        ? 82
-        : report.priority === "medium"
-          ? 64
-          : 42;
   const heroSrc = report.imageUrl || ROAD_HERO;
 
   return (
@@ -195,7 +186,7 @@ export default function CitizenReportDetailPage() {
           <div className="flex flex-wrap gap-2">
             <Badge tone={priorityTone(report.priority)}>{report.priority}</Badge>
             <Badge tone={statusTone(report.status)}>
-              {report.status.replace("_", " ")}
+              {statusLabel(report.status)}
             </Badge>
             <Badge tone="brand">{report.departmentId.replace("-", " ")}</Badge>
           </div>
@@ -204,26 +195,37 @@ export default function CitizenReportDetailPage() {
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="glass-card p-5">
-          <ConfidenceMeter value={confidence} label="AI confidence" />
-        </div>
-        <div className="glass-card p-5">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-[var(--muted)]">Trust score</span>
-            <span className="font-semibold tabular-nums">{trustScore}</span>
+            <span className="text-[var(--muted)]">Resolution progress</span>
+            <span className="font-semibold tabular-nums">{statusProgress}%</span>
           </div>
-          <Progress value={trustScore} className="mt-2" tone="success" />
+          <Progress value={statusProgress} className="mt-2" tone="brand" />
           <p className="mt-2 text-xs text-[var(--muted)]">
-            Citizen + Exa verification blend
+            Based on AMC status updates for this ticket
           </p>
         </div>
         <div className="glass-card p-5">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-[var(--muted)]">Priority score</span>
-            <span className="font-semibold tabular-nums">{priorityScore}</span>
+            <span className="text-[var(--muted)]">Civic points</span>
+            <span className="font-semibold tabular-nums">{report.pointsAwarded}</span>
           </div>
-          <Progress value={priorityScore} className="mt-2" tone="warning" />
+          <Progress
+            value={Math.min(100, report.pointsAwarded)}
+            className="mt-2"
+            tone="success"
+          />
           <p className="mt-2 text-xs text-[var(--muted)]">
-            Queue weight for AMC dispatch
+            Awarded when your report enters the AMC queue
+          </p>
+        </div>
+        <div className="glass-card p-5">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-[var(--muted)]">Priority</span>
+            <span className="font-semibold capitalize">{report.priority}</span>
+          </div>
+          <p className="mt-3 text-xs leading-relaxed text-[var(--muted)]">
+            Ward desk may adjust priority after site review. Triage tools stay
+            on the admin portal.
           </p>
         </div>
       </div>
@@ -272,7 +274,7 @@ export default function CitizenReportDetailPage() {
                         : "border-[var(--border)] text-[var(--muted)]"
                     }`}
                   >
-                    {step.replace("_", " ")}
+                    {statusLabel(step)}
                   </div>
                 );
               })}
@@ -333,23 +335,27 @@ export default function CitizenReportDetailPage() {
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <div className="flex items-center gap-2 text-[var(--brand)]">
-            <Sparkles className="h-4 w-4" />
-            <h2 className="font-display text-lg font-semibold text-[var(--foreground)]">
-              Exa AI summary
-            </h2>
-          </div>
-          <AiAnalysisPanel analysis={report.ai ?? null} />
+          <AiVsActualPanel report={report} compact />
 
           <div className="glass-card p-5">
             <div className="flex items-center gap-2 text-[var(--brand)]">
               <ShieldCheck className="h-4 w-4" />
-              <h3 className="text-sm font-semibold">Dispatch snapshot</h3>
+              <h2 className="font-display text-lg font-semibold text-[var(--foreground)]">
+                AMC review status
+              </h2>
             </div>
-            <ul className="mt-3 space-y-2 text-sm text-[var(--muted)]">
+            <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
+              Authenticity checks and department triage run on the AMC admin
+              desk after you submit. You will see status updates here as ward
+              teams acknowledge and assign the ticket.
+            </p>
+            <ul className="mt-4 space-y-2 text-sm text-[var(--muted)]">
               <li className="flex items-start gap-2">
                 <TriangleAlert className="mt-0.5 h-3.5 w-3.5 text-[var(--accent)]" />
-                Citizen: {report.citizenName}
+                Priority:{" "}
+                <span className="font-semibold capitalize text-[var(--foreground)]">
+                  {report.priority}
+                </span>
               </li>
               <li>
                 Opened{" "}

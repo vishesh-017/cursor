@@ -1,4 +1,8 @@
 import { answer, research } from "@/lib/ai/exa";
+import {
+  scanReportImage,
+  type VisualSignals,
+} from "@/lib/ai/image-scan";
 import type {
   AiAnalysis,
   AuthenticityVerdict,
@@ -114,7 +118,25 @@ function inferFromText(input: {
   let damageClass = "Unclassified surface defect";
   let issueDetected = "Unspecified civic infrastructure complaint";
 
-  if (text.includes("water") || text.includes("leak") || text.includes("pressure")) {
+  // Potholes / pavement defects always route to Roads — not Drainage.
+  if (
+    text.includes("pothole") ||
+    text.includes("asphalt") ||
+    text.includes("pavement") ||
+    text.includes("carriageway") ||
+    text.includes("road crater") ||
+    (text.includes("road") &&
+      (text.includes("crack") || text.includes("surface") || text.includes("repair")))
+  ) {
+    suggestedDepartment = "roads";
+    detection = "Road surface or safety hazard";
+    damageClass = "Pavement / carriageway defect";
+    issueDetected = "Road pothole or pavement damage";
+    severity =
+      text.includes("deep") || text.includes("cluster") || text.includes("critical")
+        ? "critical"
+        : "high";
+  } else if (text.includes("water") || text.includes("leak") || text.includes("pressure")) {
     suggestedDepartment = "water";
     detection = "Water supply anomaly";
     damageClass = "Utility leakage / pressure failure";
@@ -124,14 +146,27 @@ function inferFromText(input: {
     text.includes("drain") ||
     text.includes("flood") ||
     text.includes("sewage") ||
-    text.includes("waterlog")
+    text.includes("waterlog") ||
+    text.includes("sinkhole") ||
+    text.includes("cave-in") ||
+    text.includes("cave in")
   ) {
+    // Sinkholes / cave-ins often stem from underground drain failure → Drainage.
+    // Plain potholes are handled above under Roads.
     suggestedDepartment = "drainage";
     detection = "Drainage obstruction or sewer surcharge";
     damageClass = "Storm-water / sewer failure";
-    issueDetected = "Drainage blockage or waterlogging";
+    issueDetected =
+      text.includes("sinkhole") || text.includes("cave")
+        ? "Sinkhole / cave-in from subsurface washout"
+        : "Drainage blockage or waterlogging";
     severity =
-      text.includes("flood") || text.includes("underpass") ? "critical" : "high";
+      text.includes("flood") ||
+      text.includes("underpass") ||
+      text.includes("sinkhole") ||
+      text.includes("cave")
+        ? "critical"
+        : "high";
   } else if (text.includes("light") || text.includes("lamp")) {
     suggestedDepartment = "electrical";
     detection = "Street lighting failure";
@@ -151,17 +186,15 @@ function inferFromText(input: {
     detection = "Pedestrian infrastructure damage";
     damageClass = "Street furniture / footpath defect";
     issueDetected = "Damaged footpath or pedestrian railing";
-  } else if (
-    text.includes("pothole") ||
-    text.includes("manhole") ||
-    text.includes("road")
-  ) {
-    suggestedDepartment = "roads";
+  } else if (text.includes("manhole") || text.includes("road")) {
+    suggestedDepartment = text.includes("manhole") ? "drainage" : "roads";
     detection = "Road surface or safety hazard";
-    damageClass = "Pavement / carriageway defect";
+    damageClass = text.includes("manhole")
+      ? "Manhole / chamber safety defect"
+      : "Pavement / carriageway defect";
     issueDetected = text.includes("manhole")
       ? "Open or missing manhole cover"
-      : "Road pothole or pavement damage";
+      : "Road surface damage";
     severity =
       text.includes("manhole") || text.includes("critical") ? "critical" : "high";
   }
@@ -176,25 +209,74 @@ function inferFromText(input: {
   };
 }
 
+function confidenceFromSignals(input: {
+  title: string;
+  description: string;
+  authenticityScore: number;
+  authenticity: AuthenticityVerdict;
+  severity: Priority;
+}): number {
+  let confidence = 0.62 + input.authenticityScore * 0.25;
+  if (input.description.trim().length >= 80) confidence += 0.06;
+  if (input.description.trim().length < 30) confidence -= 0.1;
+  if (/\d|sg highway|brts|maninagar|cg road|vastrapur|thaltej/i.test(
+    `${input.title} ${input.description}`
+  )) {
+    confidence += 0.05;
+  }
+  if (input.severity === "critical" || input.severity === "low") {
+    confidence += 0.03;
+  }
+  if (input.authenticity === "possibly_fake") confidence = Math.min(confidence, 0.58);
+  if (input.authenticity === "uncertain") confidence -= 0.08;
+  return Number(Math.max(0.4, Math.min(0.96, confidence)).toFixed(2));
+}
+
 export function fallbackAnalysis(input: {
   title: string;
   description: string;
   category: string;
   ward?: string;
+  imageScan?: Awaited<ReturnType<typeof scanReportImage>>;
 }): AiAnalysis {
   const base = inferFromText(input);
   const authenticity = inferAuthenticity(input);
+  const scan = input.imageScan;
+  const suggestedDepartment =
+    scan?.imageRelevant === "relevant"
+      ? scan.imageDepartmentHint
+      : base.suggestedDepartment;
+  const issueDetected =
+    scan?.imageRelevant === "relevant" && scan.imageIssueHint
+      ? scan.imageIssueHint
+      : base.issueDetected;
   const priorityScore = priorityToScore(base.severity);
+  const confidence = confidenceFromSignals({
+    title: input.title,
+    description: input.description,
+    authenticityScore: authenticity.authenticityScore,
+    authenticity: authenticity.authenticity,
+    severity: base.severity,
+  });
 
   return {
     ...base,
-    summary: `AMC triage brief for "${input.title}": ${base.issueDetected} in Ahmedabad (${input.ward ?? "citywide"}). Authenticity: ${authenticity.authenticity.replace("_", " ")}. Recommended routing to ${base.suggestedDepartment} with priority score ${priorityScore}/100.`,
-    confidence: authenticity.authenticity === "possibly_fake" ? 0.55 : 0.72,
+    suggestedDepartment,
+    suggestedPriority: base.severity,
+    issueDetected,
+    summary: `AMC triage brief for "${input.title}": ${issueDetected} in Ahmedabad (${input.ward ?? "citywide"}). Predicted risk: ${base.severity}. Authenticity: ${authenticity.authenticity.replace("_", " ")}. Confidence ${Math.round(confidence * 100)}%. Photo: ${scan?.imageRelevant ?? "not scanned"} (${Math.round((scan?.imageRelevanceScore ?? 0) * 100)}%). Recommended routing to ${suggestedDepartment} with priority score ${priorityScore}/100.`,
+    confidence,
     authenticity: authenticity.authenticity,
     authenticityScore: authenticity.authenticityScore,
     priorityScore,
     standardsNote:
       "Offline heuristic analysis used because Exa AI was unavailable.",
+    imageRelevant: scan?.imageRelevant,
+    imageRelevanceScore: scan?.imageRelevanceScore,
+    imageScene: scan?.imageScene,
+    imageDepartmentHint: scan?.imageDepartmentHint,
+    imageIssueHint: scan?.imageIssueHint,
+    imageNotes: scan?.imageNotes,
   };
 }
 
@@ -202,6 +284,9 @@ function extractPriority(text: string, fallback: Priority): Priority {
   const lower = text.toLowerCase();
   for (const priority of priorities) {
     if (
+      lower.includes(`risklevel: ${priority}`) ||
+      lower.includes(`risk level: ${priority}`) ||
+      lower.includes(`risk: ${priority}`) ||
       lower.includes(`severity: ${priority}`) ||
       lower.includes(`priority: ${priority}`) ||
       lower.includes(`suggested priority: ${priority}`)
@@ -209,14 +294,24 @@ function extractPriority(text: string, fallback: Priority): Priority {
       return priority;
     }
   }
-  if (lower.includes("critical")) return "critical";
-  if (lower.includes("high")) return "high";
-  if (lower.includes("low")) return "low";
+  if (/\bcritical\b/.test(lower)) return "critical";
+  if (/\bmedium\b/.test(lower)) return "medium";
+  if (/\blow\b/.test(lower)) return "low";
+  if (/\bhigh\b/.test(lower) && !lower.includes("highway")) return "high";
   return fallback;
 }
 
 function extractDepartment(text: string, fallback: DepartmentId): DepartmentId {
   const lower = text.toLowerCase();
+  // Explicit pavement language wins over a generic "drainage" mention in the summary.
+  if (
+    lower.includes("pothole") ||
+    lower.includes("pavement") ||
+    lower.includes("asphalt") ||
+    lower.includes("carriageway")
+  ) {
+    return "roads";
+  }
   if (lower.includes("electrical") || lower.includes("street light")) {
     return "electrical";
   }
@@ -229,18 +324,16 @@ function extractDepartment(text: string, fallback: DepartmentId): DepartmentId {
   if (
     lower.includes("drainage") ||
     lower.includes("storm water") ||
-    lower.includes("sewer")
+    lower.includes("sewer") ||
+    lower.includes("sinkhole") ||
+    lower.includes("cave-in")
   ) {
     return "drainage";
   }
   if (lower.includes("water supply") || lower.includes(" pipeline")) {
     return "water";
   }
-  if (
-    lower.includes("roads") ||
-    lower.includes("pavement") ||
-    lower.includes("pothole")
-  ) {
+  if (lower.includes("roads") || lower.includes("road department")) {
     return "roads";
   }
   for (const dept of departments) {
@@ -294,38 +387,58 @@ function extractLabeled(text: string, label: string): string | null {
   return match?.[1]?.split("\n")[0]?.trim() || null;
 }
 
-/** Exa-only infrastructure triage + authenticity scoring for AMC reports. */
+/** Exa-only infrastructure triage + authenticity + photo relevance for AMC reports. */
 export async function analyzeInfrastructure(input: {
   title: string;
   description: string;
   category: string;
   ward?: string;
+  imageUrl?: string;
+  visualSignals?: VisualSignals;
 }): Promise<AiAnalysis> {
-  const heuristic = fallbackAnalysis(input);
+  const imageScan = await scanReportImage({
+    title: input.title,
+    description: input.description,
+    category: input.category,
+    ward: input.ward,
+    imageUrl: input.imageUrl,
+    visualSignals: input.visualSignals,
+  });
+  const heuristic = fallbackAnalysis({ ...input, imageScan });
 
   try {
     const [triage, standards] = await Promise.all([
       answer({
         query: [
           "You are verifying a citizen infrastructure report for Ahmedabad Municipal Corporation (AMC).",
-          "Assess if the report seems genuine or possibly fake/spam, detect the real issue, and score priority.",
+          "Predict risk level (critical / high / medium / low), model confidence, authenticity, and routing.",
+          "Critical = imminent safety / major service failure. Medium = notable inconvenience needing scheduled fix.",
+          "Department rules: pothole / asphalt / pavement damage → roads. Clogged drain / waterlogging / sewage / sinkhole cave-in → drainage. Do NOT send potholes to drainage.",
+          "Use photo scan signals when present. If photo is not_relevant, lower authenticity and flag mismatch.",
           "Respond with short labeled lines exactly like:",
           "Authenticity: likely_true | possibly_fake | uncertain",
           "AuthenticityScore: 0-100",
           "IssueDetected: short phrase",
           "Detection: short phrase",
           "Damage class: short phrase",
+          "RiskLevel: low|medium|high|critical",
           "PriorityScore: 0-100",
           "Severity: low|medium|high|critical",
           "Suggested department: roads|water|drainage|electrical|sanitation|town-planning",
           "Suggested priority: low|medium|high|critical",
           "Confidence: 0-100",
-          "Officer summary: 2-3 sentences",
+          "Officer summary: 2-3 sentences including predicted risk, photo relevance, and confidence",
           "",
           `Title: ${input.title}`,
           `Category: ${input.category}`,
           `Ward: ${input.ward ?? "Ahmedabad"}`,
           `Description: ${input.description}`,
+          `PhotoRelevant: ${imageScan.imageRelevant}`,
+          `PhotoRelevanceScore: ${Math.round(imageScan.imageRelevanceScore * 100)}`,
+          `PhotoScene: ${imageScan.imageScene}`,
+          `PhotoIssue: ${imageScan.imageIssueHint}`,
+          `PhotoDepartmentHint: ${imageScan.imageDepartmentHint}`,
+          `PhotoNotes: ${imageScan.imageNotes}`,
         ].join("\n"),
       }),
       research({
@@ -354,32 +467,84 @@ export async function analyzeInfrastructure(input: {
       [/confidence[:\-\s]+(\d{1,3})/i],
       Math.round(heuristic.confidence * 100)
     );
-    const severity = extractPriority(text, scoreToPriority(priorityScore));
-    const suggestedDepartment = extractDepartment(
+    const riskLevel = extractPriority(text, scoreToPriority(priorityScore));
+    const severity = extractPriority(text, riskLevel);
+    const suggestedPriority = extractPriority(text, severity);
+    let suggestedDepartment = extractDepartment(
       text,
-      heuristic.suggestedDepartment
+      imageScan.imageRelevant === "relevant"
+        ? imageScan.imageDepartmentHint
+        : heuristic.suggestedDepartment
     );
+    if (
+      imageScan.imageRelevant === "relevant" &&
+      imageScan.imageRelevanceScore >= 0.65
+    ) {
+      suggestedDepartment = imageScan.imageDepartmentHint;
+    }
     const issueDetected =
       extractLabeled(text, "IssueDetected") ||
       extractLabeled(text, "Issue detected") ||
-      heuristic.issueDetected;
+      (imageScan.imageRelevant === "relevant"
+        ? imageScan.imageIssueHint
+        : heuristic.issueDetected);
 
     const localAuth = inferAuthenticity(input);
-    const blendedAuthScore = Number(
+    let blendedAuthScore = Number(
       (
         (Math.min(100, authenticityScorePct) / 100) * 0.65 +
         localAuth.authenticityScore * 0.35
       ).toFixed(2)
     );
+    if (imageScan.imageRelevant === "not_relevant") {
+      blendedAuthScore = Number(Math.min(blendedAuthScore, 0.48).toFixed(2));
+    }
+    const modelConfidence = Math.min(
+      0.99,
+      Math.max(0.35, confidencePct / 100)
+    );
+    const blendedConfidence = Number(
+      (
+        modelConfidence * 0.7 +
+        confidenceFromSignals({
+          title: input.title,
+          description: input.description,
+          authenticityScore: blendedAuthScore,
+          authenticity:
+            authenticity === "likely_true" &&
+            localAuth.authenticity === "possibly_fake"
+              ? "uncertain"
+              : authenticity,
+          severity: suggestedPriority,
+        }) *
+          0.3
+      ).toFixed(2)
+    );
+    const alignedScore = priorityToScore(suggestedPriority);
+    const finalPriorityScore = Math.min(
+      100,
+      Math.max(
+        0,
+        Math.round(priorityScore * 0.7 + alignedScore * 0.3)
+      )
+    );
+
+    const authenticityFinal =
+      imageScan.imageRelevant === "not_relevant"
+        ? "uncertain"
+        : authenticity === "likely_true" &&
+            localAuth.authenticity === "possibly_fake"
+          ? "uncertain"
+          : authenticity;
 
     return {
       detection:
         extractLabeled(text, "Detection") || heuristic.detection,
       damageClass:
         extractLabeled(text, "Damage class") || heuristic.damageClass,
-      severity,
+      severity: suggestedPriority,
       suggestedDepartment,
-      suggestedPriority: extractPriority(text, severity),
+      suggestedPriority,
       summary: (
         extractLabeled(text, "Officer summary") ||
         extractLabeled(text, "Summary") ||
@@ -387,15 +552,18 @@ export async function analyzeInfrastructure(input: {
       )
         .trim()
         .slice(0, 900),
-      confidence: Math.min(0.99, Math.max(0.35, confidencePct / 100)),
-      authenticity:
-        authenticity === "likely_true" && localAuth.authenticity === "possibly_fake"
-          ? "uncertain"
-          : authenticity,
+      confidence: blendedConfidence,
+      authenticity: authenticityFinal,
       authenticityScore: blendedAuthScore,
-      priorityScore: Math.min(100, Math.max(0, priorityScore)),
+      priorityScore: finalPriorityScore,
       issueDetected,
       standardsNote: standards?.answer.slice(0, 420) || undefined,
+      imageRelevant: imageScan.imageRelevant,
+      imageRelevanceScore: imageScan.imageRelevanceScore,
+      imageScene: imageScan.imageScene,
+      imageDepartmentHint: imageScan.imageDepartmentHint,
+      imageIssueHint: imageScan.imageIssueHint,
+      imageNotes: imageScan.imageNotes,
     };
   } catch {
     return heuristic;

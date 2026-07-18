@@ -124,7 +124,22 @@ html.dark .amc-grid {
 .leaflet-container {
   font: inherit;
   z-index: 0;
-  border-radius: 18px;
+  border-radius: 22px;
+  background: #e8eef1;
+}
+
+.ux-map-pin {
+  background: transparent !important;
+  border: none !important;
+}
+
+.leaflet-heatmap-layer {
+  opacity: 0.92;
+}
+
+.leaflet-control-zoom a {
+  border-radius: 12px !important;
+  color: var(--foreground) !important;
 }
 
 .scrollbar-thin::-webkit-scrollbar {

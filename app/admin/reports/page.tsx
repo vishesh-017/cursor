@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { ReportTable } from "@/components/shared/report-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +16,7 @@ import type {
   ReportStatus,
   Ward,
 } from "@/types";
+import { statusLabel } from "@/utils/status";
 
 const statuses: Array<ReportStatus | ""> = [
   "",
@@ -39,6 +41,10 @@ export default function AdminReportsPage() {
   const [departmentId, setDepartmentId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deskScope, setDeskScope] = useState<
+    { type: "city" } | { type: "ward"; wards: string[] } | null
+  >(null);
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -78,12 +84,18 @@ export default function AdminReportsPage() {
         const json = (await res.json()) as {
           success: boolean;
           message?: string;
-          data?: { reports: InfrastructureReport[] };
+          data?: {
+            reports: InfrastructureReport[];
+            scope?: { type: "city" } | { type: "ward"; wards: string[] };
+          };
         };
         if (!res.ok || !json.success || !json.data) {
           throw new Error(json.message || "Failed to load reports");
         }
-        if (active) setReports(json.data.reports);
+        if (active) {
+          setReports(json.data.reports);
+          if (json.data.scope) setDeskScope(json.data.scope);
+        }
       } catch (err) {
         if (active) {
           setError(err instanceof Error ? err.message : "Failed to load");
@@ -99,16 +111,60 @@ export default function AdminReportsPage() {
     };
   }, [queryString]);
 
+  async function updateStatus(id: string, nextStatus: ReportStatus) {
+    setUpdatingId(id);
+    try {
+      const res = await fetch(`/api/reports/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: nextStatus,
+          timelineNote: `Status set to ${statusLabel(nextStatus)}`,
+        }),
+      });
+      const json = (await res.json()) as {
+        success: boolean;
+        message?: string;
+        data?: { report: InfrastructureReport };
+      };
+      if (!res.ok || !json.success || !json.data) {
+        throw new Error(json.message || "Status update failed");
+      }
+      setReports((prev) =>
+        prev.map((r) => (r.id === id ? json.data!.report : r))
+      );
+      toast.success(`Marked ${statusLabel(nextStatus)}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Status update failed");
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  const wardLocked =
+    deskScope?.type === "ward" ? deskScope.wards : null;
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-          Reports inbox
+          {wardLocked
+            ? `${wardLocked.join(" / ")} ward inbox`
+            : "City-wide reports inbox"}
         </h1>
         <p className="mt-2 text-sm text-slate-600">
-          Filter Ahmedabad infrastructure tickets by ward, department, priority, and status.
+          {wardLocked
+            ? "Citizens may live in any ward and file tickets for this ward — you only receive requests mapped to your desk."
+            : "HQ view across all Ahmedabad wards. Ward desks see only their own inbox."}
         </p>
       </div>
+
+      {wardLocked ? (
+        <div className="rounded-2xl border border-teal-200 bg-teal-50/80 px-4 py-3 text-sm text-teal-900 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-100">
+          Ward desk scope: <strong>{wardLocked.join(", ")}</strong> — tickets from
+          other wards are hidden.
+        </div>
+      ) : null}
 
       <Card className="glass-card">
         <CardHeader>
@@ -134,7 +190,7 @@ export default function AdminReportsPage() {
             >
               {statuses.map((s) => (
                 <option key={s || "all"} value={s}>
-                  {s ? s.replace("_", " ") : "All statuses"}
+                  {s ? statusLabel(s) : "All statuses"}
                 </option>
               ))}
             </select>
@@ -159,15 +215,26 @@ export default function AdminReportsPage() {
             <select
               id="ward"
               className="flex h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
-              value={ward}
+              value={wardLocked ? wardLocked[0] : ward}
+              disabled={Boolean(wardLocked)}
               onChange={(e) => setWard(e.target.value)}
             >
-              <option value="">All wards</option>
-              {wards.map((w) => (
-                <option key={w.id} value={w.name}>
-                  {w.name}
-                </option>
-              ))}
+              {wardLocked ? (
+                wardLocked.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value="">All wards</option>
+                  {wards.map((w) => (
+                    <option key={w.id} value={w.name}>
+                      {w.name}
+                    </option>
+                  ))}
+                </>
+              )}
             </select>
           </div>
           <div className="space-y-2 md:col-span-2 xl:col-span-2">
@@ -220,7 +287,13 @@ export default function AdminReportsPage() {
       ) : null}
 
       {!loading && !error && reports.length > 0 ? (
-        <ReportTable reports={reports} hrefBase="/admin/reports" />
+        <ReportTable
+          reports={reports}
+          hrefBase="/admin/reports"
+          adminActions
+          updatingId={updatingId}
+          onStatusChange={(id, next) => void updateStatus(id, next)}
+        />
       ) : null}
     </div>
   );

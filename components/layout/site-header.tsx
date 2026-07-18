@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
-import { Sparkles } from "lucide-react";
-import { siteConfig } from "@/config/site";
+import { useEffect, useState } from "react";
+import { UrbanexusLogo } from "@/components/brand/urbanexus-logo";
 import { cn } from "@/utils/cn";
 
 const links = [
@@ -16,25 +15,41 @@ const links = [
 
 export function SiteHeader() {
   const pathname = usePathname();
+  const [shellActive, setShellActive] = useState(
+    pathname.startsWith("/citizen") || pathname.startsWith("/admin")
+  );
 
-  if (pathname.startsWith("/citizen") || pathname.startsWith("/admin")) {
+  useEffect(() => {
+    if (pathname.startsWith("/citizen") || pathname.startsWith("/admin")) {
+      setShellActive(true);
+      return;
+    }
+    if (pathname.startsWith("/map")) {
+      let active = true;
+      void fetch("/api/auth/me", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((json: { success?: boolean; data?: { user?: unknown } }) => {
+          if (active) setShellActive(Boolean(json.success && json.data?.user));
+        })
+        .catch(() => {
+          if (active) setShellActive(false);
+        });
+      return () => {
+        active = false;
+      };
+    }
+    setShellActive(false);
+  }, [pathname]);
+
+  if (shellActive) {
     return null;
   }
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-teal-500/20 text-teal-200">
-            <Sparkles className="h-4 w-4" />
-          </span>
-          <motion.span
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="font-display text-lg font-semibold tracking-tight text-white"
-          >
-            {siteConfig.name}
-          </motion.span>
+        <Link href="/" className="flex items-center">
+          <UrbanexusLogo inverted size="sm" />
         </Link>
         <nav className="flex items-center gap-1">
           {links.map((link) => (

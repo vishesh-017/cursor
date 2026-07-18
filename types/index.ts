@@ -1,5 +1,8 @@
 export type UserRole = "citizen" | "admin" | "officer";
 
+/** City HQ sees all wards; ward desks only receive their ward inbox. */
+export type AdminScope = "city" | "ward";
+
 export type ReportCategory =
   | "roads"
   | "water"
@@ -33,7 +36,12 @@ export interface UserProfile {
   email: string;
   phone: string;
   role: UserRole;
+  /** Home ward for citizens; primary desk ward for officers/admins. */
   ward: string;
+  /** City-wide HQ vs single-ward operations desk. */
+  adminScope?: AdminScope;
+  /** Wards this admin/officer may open. Defaults to [ward] when adminScope is ward. */
+  managedWards?: string[];
   avatarUrl: string;
   points: number;
   badges: string[];
@@ -74,6 +82,8 @@ export interface TimelineEvent {
 
 export type AuthenticityVerdict = "likely_true" | "possibly_fake" | "uncertain";
 
+export type ImageRelevance = "relevant" | "not_relevant" | "uncertain";
+
 export interface AiAnalysis {
   detection: string;
   damageClass: string;
@@ -92,6 +102,18 @@ export interface AiAnalysis {
   /** Short plain-language issue detected. */
   issueDetected: string;
   standardsNote?: string;
+  /** Whether uploaded photo looks like civic infrastructure evidence. */
+  imageRelevant?: ImageRelevance;
+  /** Confidence that image relevance verdict is correct (0–1). */
+  imageRelevanceScore?: number;
+  /** Short scene label from image scan. */
+  imageScene?: string;
+  /** Department inferred from image scan. */
+  imageDepartmentHint?: DepartmentId;
+  /** Issue visible in the photo. */
+  imageIssueHint?: string;
+  /** Officer-facing notes from image scan. */
+  imageNotes?: string;
 }
 
 export interface InfrastructureReport {
@@ -113,6 +135,7 @@ export interface InfrastructureReport {
   assignedTo?: string;
   departmentId: DepartmentId;
   imageUrl?: string;
+  imageUrls?: string[];
   ai?: AiAnalysis;
   timeline: TimelineEvent[];
   pointsAwarded: number;
@@ -225,4 +248,6 @@ export interface SessionUser {
   email: string;
   role: UserRole;
   ward: string;
+  adminScope?: AdminScope;
+  managedWards?: string[];
 }

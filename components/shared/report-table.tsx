@@ -1,24 +1,43 @@
 import Link from "next/link";
 import { Badge, priorityTone, statusTone } from "@/components/ui/badge";
-import type { InfrastructureReport } from "@/types";
+import type { InfrastructureReport, ReportStatus } from "@/types";
+import { statusLabel } from "@/utils/status";
+
+const quickStatuses: ReportStatus[] = [
+  "acknowledged",
+  "assigned",
+  "in_progress",
+  "resolved",
+  "rejected",
+];
 
 export function ReportTable({
   reports,
   hrefBase,
+  adminActions = false,
+  updatingId = null,
+  onStatusChange,
 }: {
   reports: InfrastructureReport[];
   hrefBase: string;
+  adminActions?: boolean;
+  updatingId?: string | null;
+  onStatusChange?: (id: string, status: ReportStatus) => void;
 }) {
   return (
     <div className="overflow-x-auto rounded-[18px] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow)] backdrop-blur">
       <table className="min-w-full text-left text-sm">
         <thead className="bg-black/[0.03] text-xs uppercase tracking-[0.14em] text-[var(--muted)] dark:bg-white/[0.04]">
           <tr>
+            <th className="px-4 py-3.5 font-semibold">Photo</th>
             <th className="px-4 py-3.5 font-semibold">Report</th>
             <th className="px-4 py-3.5 font-semibold">Ward</th>
             <th className="px-4 py-3.5 font-semibold">Priority</th>
             <th className="px-4 py-3.5 font-semibold">Status</th>
             <th className="px-4 py-3.5 font-semibold">Updated</th>
+            {adminActions ? (
+              <th className="px-4 py-3.5 font-semibold">Update status</th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -27,6 +46,20 @@ export function ReportTable({
               key={report.id}
               className="border-t border-[var(--border)] transition hover:bg-[var(--brand-soft)]/40"
             >
+              <td className="px-4 py-3.5">
+                {report.imageUrl || report.imageUrls?.[0] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={report.imageUrl || report.imageUrls?.[0]}
+                    alt=""
+                    className="h-12 w-16 rounded-xl object-cover ring-1 ring-[var(--border)]"
+                  />
+                ) : (
+                  <span className="grid h-12 w-16 place-items-center rounded-xl bg-black/5 text-[10px] text-[var(--muted)] dark:bg-white/5">
+                    None
+                  </span>
+                )}
+              </td>
               <td className="px-4 py-3.5">
                 <Link
                   href={`${hrefBase}/${report.id}`}
@@ -42,7 +75,7 @@ export function ReportTable({
               </td>
               <td className="px-4 py-3.5">
                 <Badge tone={statusTone(report.status)}>
-                  {report.status.replace("_", " ")}
+                  {statusLabel(report.status)}
                 </Badge>
               </td>
               <td className="px-4 py-3.5 text-[var(--muted)]">
@@ -53,6 +86,26 @@ export function ReportTable({
                   minute: "2-digit",
                 })}
               </td>
+              {adminActions ? (
+                <td className="px-4 py-3.5">
+                  <select
+                    aria-label={`Update status for ${report.id}`}
+                    className="h-9 min-w-[10.5rem] rounded-xl border border-[var(--border)] bg-[var(--surface-solid)] px-2 text-xs font-semibold text-[var(--foreground)]"
+                    value={report.status}
+                    disabled={updatingId === report.id}
+                    onChange={(e) =>
+                      onStatusChange?.(report.id, e.target.value as ReportStatus)
+                    }
+                  >
+                    <option value="submitted">{statusLabel("submitted")}</option>
+                    {quickStatuses.map((s) => (
+                      <option key={s} value={s}>
+                        {statusLabel(s)}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+              ) : null}
             </tr>
           ))}
         </tbody>

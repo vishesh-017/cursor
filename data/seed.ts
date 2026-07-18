@@ -316,6 +316,7 @@ export const users: UserProfile[] = [
     phone: "+91 79 2539 1811",
     role: "admin",
     ward: "Ellisbridge",
+    adminScope: "city",
     avatarUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop",
     points: 0,
     badges: [],
@@ -330,6 +331,8 @@ export const users: UserProfile[] = [
     phone: "+91 79 2539 1900",
     role: "officer",
     ward: "Naroda",
+    adminScope: "ward",
+    managedWards: ["Naroda"],
     avatarUrl: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop",
     points: 0,
     badges: [],
@@ -337,6 +340,26 @@ export const users: UserProfile[] = [
     reportsCount: 0,
     resolvedCount: 0,
   },
+  // One operations desk per ward — each only receives that ward's citizen requests.
+  ...wards.map(
+    (ward, index): UserProfile => ({
+      id: `user-ward-admin-${ward.id}`,
+      name: `${ward.name} Ward Desk`,
+      email: `${ward.name.toLowerCase().replace(/\s+/g, "")}.admin@amc.gov.in`,
+      phone: `+91 79 2539 ${1800 + index}`,
+      role: "admin",
+      ward: ward.name,
+      adminScope: "ward",
+      managedWards: [ward.name],
+      avatarUrl:
+        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop",
+      points: 0,
+      badges: [],
+      joinedAt: "2025-01-10T06:00:00.000Z",
+      reportsCount: 0,
+      resolvedCount: 0,
+    })
+  ),
 ];
 
 function tl(
@@ -383,8 +406,14 @@ export const seedReports: InfrastructureReport[] = [
       confidence: 0.91,
       authenticity: "likely_true",
       authenticityScore: 0.9,
-      priorityScore: 75,
-      issueDetected: "Infrastructure issue",
+      priorityScore: 74,
+      issueDetected: "Deep pothole cluster on carriageway",
+      imageRelevant: "relevant",
+      imageRelevanceScore: 0.88,
+      imageScene: "Road / pavement surface",
+      imageDepartmentHint: "roads",
+      imageIssueHint: "Pavement damage / pothole-like surface",
+      imageNotes: "Photo matches roads infrastructure — suitable for AMC Roads desk.",
     },
     timeline: [
       tl("t1", "2026-07-16T08:20:00.000Z", "Report submitted", "Citizen report received via Urbanexus.", "Harsh Patel", "submitted"),
@@ -950,6 +979,26 @@ export const demoCredentials = [
     email: "priya.mehta@yahoo.com",
     password: "demo1234",
     userId: "user-citizen-2",
+  },
+  {
+    email: "thaltej.admin@amc.gov.in",
+    password: "ward1234",
+    userId: "user-ward-admin-w-thaltej",
+  },
+  {
+    email: "maninagar.admin@amc.gov.in",
+    password: "ward1234",
+    userId: "user-ward-admin-w-maninagar",
+  },
+  {
+    email: "vastrapur.admin@amc.gov.in",
+    password: "ward1234",
+    userId: "user-ward-admin-w-vastrapur",
+  },
+  {
+    email: "kinjal.dave@amc.gov.in",
+    password: "ward1234",
+    userId: "user-officer-1",
   },
 ] as const;
 

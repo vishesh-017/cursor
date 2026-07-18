@@ -19,8 +19,25 @@ import type {
 } from "@/types";
 import { getDashboardStats as computeStats } from "@/services/analytics";
 
-const reports: InfrastructureReport[] = structuredClone(seedReports);
-const notificationStore: NotificationItem[] = structuredClone(seedNotifications);
+type UrbanexusStore = {
+  reports: InfrastructureReport[];
+  notifications: NotificationItem[];
+};
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __urbanexusStore: UrbanexusStore | undefined;
+}
+
+function getStore(): UrbanexusStore {
+  if (!globalThis.__urbanexusStore) {
+    globalThis.__urbanexusStore = {
+      reports: structuredClone(seedReports),
+      notifications: structuredClone(seedNotifications),
+    };
+  }
+  return globalThis.__urbanexusStore;
+}
 
 export function getUsers() {
   return users;
@@ -38,11 +55,12 @@ export function listReports(filters?: {
   citizenId?: string;
   status?: ReportStatus;
   ward?: string;
+  wards?: string[];
   priority?: string;
   departmentId?: string;
   q?: string;
 }) {
-  let result = [...reports];
+  let result = [...getStore().reports];
 
   if (filters?.citizenId) {
     result = result.filter((r) => r.citizenId === filters.citizenId);
@@ -50,7 +68,10 @@ export function listReports(filters?: {
   if (filters?.status) {
     result = result.filter((r) => r.status === filters.status);
   }
-  if (filters?.ward) {
+  if (filters?.wards?.length) {
+    const set = new Set(filters.wards.map((w) => w.toLowerCase()));
+    result = result.filter((r) => set.has(r.ward.toLowerCase()));
+  } else if (filters?.ward) {
     result = result.filter(
       (r) => r.ward.toLowerCase() === filters.ward!.toLowerCase()
     );
@@ -78,7 +99,7 @@ export function listReports(filters?: {
 }
 
 export function getReportById(id: string) {
-  return reports.find((r) => r.id === id);
+  return getStore().reports.find((r) => r.id === id);
 }
 
 export function createReport(
@@ -106,9 +127,10 @@ export function createReport(
       },
     ],
   };
-  reports.unshift(report);
+  const store = getStore();
+  store.reports.unshift(report);
 
-  notificationStore.unshift({
+  store.notifications.unshift({
     id: `n-${Date.now()}`,
     userId: input.citizenId,
     title: "Report submitted",
@@ -130,7 +152,7 @@ export function updateReport(
     >
   > & { timelineNote?: string; actor?: string }
 ) {
-  const report = reports.find((r) => r.id === id);
+  const report = getStore().reports.find((r) => r.id === id);
   if (!report) return null;
 
   const now = new Date().toISOString();
@@ -152,7 +174,7 @@ export function updateReport(
     });
   }
 
-  notificationStore.unshift({
+  getStore().notifications.unshift({
     id: `n-${Date.now()}`,
     userId: report.citizenId,
     title: "Report update",
@@ -247,13 +269,15 @@ export function getWardLeaderboard(): WardRankingEntry[] {
 }
 
 export function getNotifications(userId: string) {
-  return notificationStore
-    .filter((n) => n.userId === userId)
+  return getStore()
+    .notifications.filter((n) => n.userId === userId)
     .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
 }
 
 export function markNotificationRead(id: string, userId: string) {
-  const item = notificationStore.find((n) => n.id === id && n.userId === userId);
+  const item = getStore().notifications.find(
+    (n) => n.id === id && n.userId === userId
+  );
   if (item) item.read = true;
   return item;
 }
@@ -311,8 +335,13 @@ export function getUrbanPulse(): UrbanPulseMetrics {
   };
 }
 
-export function getReportStats() {
-  return computeStats(listReports());
+export function getReportStats(filters?: { ward?: string; wards?: string[] }) {
+  return computeStats(
+    listReports({
+      ward: filters?.ward,
+      wards: filters?.wards,
+    })
+  );
 }
 
 export { computeStats as getDashboardStats };

@@ -10,6 +10,22 @@ const schema = z.object({
   description: z.string().min(10),
   category: z.string().min(2),
   ward: z.string().optional(),
+  imageUrl: z.string().optional(),
+  visualSignals: z
+    .object({
+      width: z.number(),
+      height: z.number(),
+      brightness: z.number(),
+      variance: z.number(),
+      asphaltScore: z.number(),
+      vegetationScore: z.number(),
+      waterScore: z.number(),
+      skinScore: z.number(),
+      skyScore: z.number(),
+      edgeEnergy: z.number(),
+      fileName: z.string().optional(),
+    })
+    .optional(),
   includeStandards: z.boolean().optional(),
 });
 

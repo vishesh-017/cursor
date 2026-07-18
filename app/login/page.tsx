@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Building2, MapPinned, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
+import { UrbanexusLogo } from "@/components/brand/urbanexus-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,13 +23,25 @@ const demos = [
     role: "Citizen",
     email: "aarav.sharma@gmail.com",
     password: "demo1234",
-    note: "Vastrapur · civic reporter",
+    note: "Any ward reports · home Vastrapur",
   },
   {
-    role: "Admin",
+    role: "City HQ",
     email: "admin@amc.gov.in",
     password: "admin1234",
-    note: "AMC control room",
+    note: "Sees all ward tickets",
+  },
+  {
+    role: "Thaltej desk",
+    email: "thaltej.admin@amc.gov.in",
+    password: "ward1234",
+    note: "Only Thaltej ward inbox",
+  },
+  {
+    role: "Maninagar desk",
+    email: "maninagar.admin@amc.gov.in",
+    password: "ward1234",
+    note: "Only Maninagar ward inbox",
   },
 ] as const;
 
@@ -81,10 +94,11 @@ export default function LoginPage() {
           <div className="absolute inset-0 bg-gradient-to-br from-slate-950/90 via-slate-950/70 to-teal-950/50" />
           <div className="relative z-10 flex h-full flex-col justify-between p-10 text-white">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
+              <UrbanexusLogo inverted size="lg" />
+              <p className="mt-6 text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
                 Ahmedabad Municipal Corporation
               </p>
-              <h1 className="mt-4 font-display text-5xl font-semibold tracking-tight">
+              <h1 className="mt-3 font-display text-5xl font-semibold tracking-tight">
                 Urbanexus
               </h1>
               <p className="mt-4 max-w-md text-sm leading-relaxed text-slate-300">
@@ -189,7 +203,7 @@ export default function LoginPage() {
                     className="rounded-2xl border border-[var(--border)] bg-white/50 p-4 text-left transition hover:border-[var(--brand)] dark:bg-white/5"
                   >
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--brand)]">
-                      {demo.role} demo
+                      {demo.role}
                     </p>
                     <p className="mt-2 text-xs font-semibold">{demo.email}</p>
                     <p className="text-xs text-[var(--muted)]">{demo.password}</p>
@@ -197,6 +211,18 @@ export default function LoginPage() {
                   </button>
                 ))}
               </div>
+              <p className="mt-3 text-[11px] leading-relaxed text-[var(--muted)]">
+                Other ward desks:{" "}
+                <span className="font-medium text-[var(--foreground)]">
+                  vastrapur.admin@amc.gov.in
+                </span>
+                ,{" "}
+                <span className="font-medium text-[var(--foreground)]">
+                  ellisbridge.admin@amc.gov.in
+                </span>
+                , … — password{" "}
+                <span className="font-medium text-[var(--foreground)]">ward1234</span>
+              </p>
             </div>
 
             <p className="text-center text-xs text-[var(--muted)]">

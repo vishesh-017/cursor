@@ -36,6 +36,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { UrbanexusLogo } from "@/components/brand/urbanexus-logo";
 import { cn } from "@/utils/cn";
 import type { SessionUser } from "@/types";
 
@@ -152,19 +153,16 @@ export function AppShell({
     >
       <div className="flex items-center justify-between gap-2 px-4 py-5">
         <Link href="/" className="flex min-w-0 items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-[var(--brand)] text-white shadow-lg shadow-teal-900/30">
-            <Sparkles className="h-5 w-5" />
-          </div>
-          {!collapsed ? (
-            <div className="min-w-0">
-              <p className="truncate font-display text-lg font-semibold text-white">
-                Urbanexus
-              </p>
-              <p className="truncate text-[11px] uppercase tracking-[0.18em] text-[var(--sidebar-muted)]">
+          {collapsed ? (
+            <UrbanexusLogo wordmark={false} inverted size="sm" />
+          ) : (
+            <span className="min-w-0">
+              <UrbanexusLogo inverted size="sm" />
+              <p className="mt-1 truncate pl-[2.85rem] text-[11px] uppercase tracking-[0.18em] text-[var(--sidebar-muted)]">
                 {title}
               </p>
-            </div>
-          ) : null}
+            </span>
+          )}
         </Link>
         <button
           type="button"
@@ -195,8 +193,8 @@ export function AppShell({
             pathname === item.href ||
             (item.href !== "/citizen/dashboard" &&
               item.href !== "/admin/dashboard" &&
-              pathname.startsWith(`${item.href}/`)) ||
-            pathname === item.href;
+              item.href !== "/map" &&
+              pathname.startsWith(`${item.href}/`));
           const Icon = item.Icon;
           return (
             <Link

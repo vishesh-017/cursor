@@ -10,12 +10,10 @@ import {
   ChevronRight,
   ImagePlus,
   MapPin,
-  Sparkles,
   Trash2,
   Upload,
 } from "lucide-react";
 import { toast } from "sonner";
-import { AiAnalysisPanel } from "@/components/report/ai-analysis-panel";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,7 +21,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
-import type { AiAnalysis, Priority, ReportCategory, Ward } from "@/types";
+import type { Priority, ReportCategory, Ward } from "@/types";
+import type { VisualSignals } from "@/lib/ai/image-scan";
+import { compressImageFile } from "@/utils/image-evidence";
 
 const LocationPicker = dynamic(() => import("@/components/map/location-picker"), {
   ssr: false,
@@ -56,6 +56,7 @@ type PreviewFile = {
   id: string;
   name: string;
   dataUrl: string;
+  signals: VisualSignals;
 };
 
 export default function NewCitizenReportPage() {
@@ -75,8 +76,6 @@ export default function NewCitizenReportPage() {
   const [previews, setPreviews] = useState<PreviewFile[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
-  const [analysis, setAnalysis] = useState<AiAnalysis | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
@@ -119,26 +118,20 @@ export default function NewCitizenReportPage() {
     }, 160);
 
     void Promise.all(
-      list.slice(0, 4).map(
-        (file) =>
-          new Promise<PreviewFile>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-              resolve({
-                id: `${file.name}-${file.lastModified}`,
-                name: file.name,
-                dataUrl: String(reader.result),
-              });
-            };
-            reader.onerror = () => reject(new Error("Could not read image"));
-            reader.readAsDataURL(file);
-          })
-      )
+      list.slice(0, 4).map(async (file) => {
+        const { dataUrl, signals } = await compressImageFile(file);
+        return {
+          id: `${file.name}-${file.lastModified}`,
+          name: file.name,
+          dataUrl,
+          signals,
+        } satisfies PreviewFile;
+      })
     )
       .then((next) => {
         setPreviews((prev) => [...prev, ...next].slice(0, 6));
         setUploadProgress(100);
-        toast.success(`${next.length} image${next.length > 1 ? "s" : ""} ready for preview`);
+        toast.success(`${next.length} image${next.length > 1 ? "s" : ""} ready for AI scan`);
       })
       .catch(() => toast.error("Image preview failed"))
       .finally(() => {
@@ -149,69 +142,6 @@ export default function NewCitizenReportPage() {
         }, 400);
       });
   }, []);
-
-  async function runAiAnalyze() {
-    if (title.trim().length < 4 || description.trim().length < 10) {
-      toast.error("Add a clear title and description before AI analysis");
-      return;
-    }
-    setAnalyzing(true);
-    try {
-      const res = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          description,
-          category,
-          ward: wardName,
-          includeStandards: true,
-        }),
-      });
-      const json = (await res.json()) as {
-        success: boolean;
-        message?: string;
-        data?: { analysis: AiAnalysis };
-      };
-      if (!res.ok || !json.success || !json.data) {
-        throw new Error(json.message || "AI analysis failed");
-      }
-      setAnalysis(json.data.analysis);
-      setPriority(json.data.analysis.suggestedPriority);
-      toast.success(
-        `Exa checked authenticity (${json.data.analysis.authenticity.replace("_", " ")}) · priority ${json.data.analysis.priorityScore}/100`
-      );
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "AI analysis failed");
-    } finally {
-      setAnalyzing(false);
-    }
-  }
-
-  function startManualAnalysis() {
-    const blank: AiAnalysis = {
-      detection: "",
-      damageClass: "",
-      severity: priority,
-      summary: "",
-      suggestedDepartment: "roads",
-      suggestedPriority: priority,
-      confidence: 0.7,
-      authenticity: "uncertain",
-      authenticityScore: 0.5,
-      priorityScore:
-        priority === "critical"
-          ? 90
-          : priority === "high"
-            ? 70
-            : priority === "medium"
-              ? 50
-              : 30,
-      issueDetected: title.trim() || "",
-    };
-    setAnalysis(blank);
-    toast.message("Fill authenticity, issue, and priority yourself — no AI required");
-  }
 
   function applyLocationPick(pick: {
     latitude: number;
@@ -249,6 +179,7 @@ export default function NewCitizenReportPage() {
     setSubmitting(true);
     try {
       const ward = wards.find((w) => w.name === wardName);
+      const imageUrls = previews.slice(0, 3).map((p) => p.dataUrl);
       const res = await fetch("/api/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -263,9 +194,11 @@ export default function NewCitizenReportPage() {
             : address,
           latitude,
           longitude,
-          priority: analysis?.suggestedPriority ?? priority,
-          runAi: !analysis,
-          ai: analysis ?? undefined,
+          priority,
+          imageUrl: imageUrls[0],
+          imageUrls: imageUrls.length ? imageUrls : undefined,
+          visualSignals: previews[0]?.signals,
+          runAi: true,
         }),
       });
       const json = (await res.json()) as {
@@ -276,7 +209,7 @@ export default function NewCitizenReportPage() {
       if (!res.ok || !json.success || !json.data) {
         throw new Error(json.message || "Submission failed");
       }
-      toast.success("Report submitted to AMC queue");
+      toast.success("Report submitted — AMC will review and update status");
       router.push(`/citizen/reports/${json.data.report.id}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Submission failed");
@@ -306,7 +239,7 @@ export default function NewCitizenReportPage() {
       <PageHeader
         eyebrow="AMC civic intake"
         title="Report an infrastructure issue"
-        description="Walk through photo evidence, issue details, and a precise map pin so Roads, Drainage, and Electrical desks can dispatch faster across Ahmedabad."
+        description="Upload photos for any ward in Ahmedabad — your home ward does not matter. The selected issue ward’s AMC desk receives the ticket with AI triage."
       />
 
       <div className="glass-card p-4 sm:p-5">
@@ -506,7 +439,7 @@ export default function NewCitizenReportPage() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ward">Ward</Label>
+                  <Label htmlFor="ward">Issue ward (any Ahmedabad ward)</Label>
                   <select
                     id="ward"
                     className={selectClass}
@@ -522,6 +455,10 @@ export default function NewCitizenReportPage() {
                       </option>
                     ))}
                   </select>
+                  <p className="text-xs text-[var(--muted)]">
+                    Your home ward does not limit this — pick the ward where the
+                    problem is. That ward&apos;s AMC desk receives the ticket.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="address">Landmark / address</Label>
@@ -645,38 +582,26 @@ export default function NewCitizenReportPage() {
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <AiAnalysisPanel
-            analysis={analysis}
-            loading={analyzing}
-            editable
-            onChange={setAnalysis}
-          />
           <div className="glass-card space-y-3 p-5">
-            <div className="flex items-center gap-2 text-[var(--brand)]">
-              <Sparkles className="h-4 w-4" />
-              <p className="text-sm font-semibold">AMC actions</p>
-            </div>
-            <p className="text-xs text-[var(--muted)]">
-              Location pin is compulsory. Exa checks authenticity and priority —
-              or write those scores yourself.
+            <p className="text-sm font-semibold text-[var(--foreground)]">
+              Submit checklist
             </p>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              disabled={analyzing}
-              onClick={() => void runAiAnalyze()}
-            >
-              {analyzing ? "Analyzing…" : "Run Exa authenticity check"}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full"
-              onClick={startManualAnalysis}
-            >
-              Write scores manually (no AI)
-            </Button>
+            <ul className="space-y-2 text-xs text-[var(--muted)]">
+              <li className={title.trim().length >= 4 ? "text-emerald-600" : ""}>
+                {title.trim().length >= 4 ? "✓" : "○"} Issue title & details
+              </li>
+              <li className={locationPinned ? "text-emerald-600" : ""}>
+                {locationPinned ? "✓" : "○"} Map location pinned
+              </li>
+              <li className={address.trim().length >= 4 ? "text-emerald-600" : ""}>
+                {address.trim().length >= 4 ? "✓" : "○"} Landmark / address
+              </li>
+            </ul>
+            <p className="text-xs text-[var(--muted)]">
+              After you submit, AMC systems run Exa authenticity and priority
+              scoring automatically in the backend. Citizens do not manage AMC
+              triage actions here.
+            </p>
             <Button
               type="button"
               className="w-full"
@@ -692,7 +617,7 @@ export default function NewCitizenReportPage() {
                 ? "Submitting…"
                 : !locationPinned
                   ? "Pin location to submit"
-                  : "Submit to AMC"}
+                  : "Submit report to AMC"}
             </Button>
           </div>
         </aside>

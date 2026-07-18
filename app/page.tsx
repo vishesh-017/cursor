@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { UrbanexusLogo } from "@/components/brand/urbanexus-logo";
 import { siteConfig } from "@/config/site";
 
 export default function HomePage() {
@@ -19,14 +20,14 @@ export default function HomePage() {
       </div>
 
       <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl flex-col justify-center px-4 py-16 sm:px-6">
+        <div className="mb-6">
+          <UrbanexusLogo inverted size="lg" />
+        </div>
         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-teal-200">
           {siteConfig.organization}
         </p>
-        <p className="mb-2 text-sm font-medium text-teal-100/90">
-          Smart City infrastructure intelligence
-        </p>
         <h1 className="max-w-3xl font-display text-5xl font-semibold tracking-tight text-white sm:text-6xl md:text-7xl">
-          {siteConfig.name}
+          Urbanexus
         </h1>
         <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-200 sm:text-lg">
           AI-powered urban infrastructure intelligence for Ahmedabad — Exa AI

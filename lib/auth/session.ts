@@ -34,11 +34,26 @@ export function authenticate(email: string, password: string): SessionUser | nul
   if (!cred) return null;
   const user = getUserById(cred.userId) ?? getUserByEmail(email);
   if (!user) return null;
+  const managedWards =
+    user.managedWards?.length
+      ? user.managedWards
+      : user.adminScope === "ward"
+        ? [user.ward]
+        : user.adminScope === "city"
+          ? undefined
+          : user.role === "officer"
+            ? [user.ward]
+            : undefined;
+
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     role: user.role,
     ward: user.ward,
+    adminScope:
+      user.adminScope ??
+      (user.role === "admin" || user.role === "officer" ? "ward" : undefined),
+    managedWards,
   };
 }

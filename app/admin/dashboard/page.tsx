@@ -44,6 +44,9 @@ export default function AdminDashboardPage() {
   const [wards, setWards] = useState<Ward[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deskScope, setDeskScope] = useState<
+    { type: "city" } | { type: "ward"; wards: string[] } | null
+  >(null);
 
   useEffect(() => {
     let active = true;
@@ -70,7 +73,11 @@ export default function AdminDashboardPage() {
         const reportsJson = (await reportsRes.json()) as {
           success: boolean;
           message?: string;
-          data?: { reports: InfrastructureReport[]; stats?: DashboardStats };
+          data?: {
+            reports: InfrastructureReport[];
+            stats?: DashboardStats;
+            scope?: { type: "city" } | { type: "ward"; wards: string[] };
+          };
         };
 
         if (!analyticsRes.ok || !analyticsJson.success || !analyticsJson.data) {
@@ -78,6 +85,9 @@ export default function AdminDashboardPage() {
         }
         if (!reportsRes.ok || !reportsJson.success || !reportsJson.data) {
           throw new Error(reportsJson.message || "Reports failed");
+        }
+        if (active && reportsJson.data.scope) {
+          setDeskScope(reportsJson.data.scope);
         }
 
         if (!active) return;
@@ -144,14 +154,19 @@ export default function AdminDashboardPage() {
         <div className="relative grid gap-6 p-6 lg:grid-cols-[1.4fr_0.8fr] lg:p-8">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-200">
-              Municipal command center
+              {deskScope?.type === "ward"
+                ? `${deskScope.wards.join(" / ")} ward desk`
+                : "Municipal command center"}
             </p>
             <h1 className="mt-2 font-display text-3xl font-semibold sm:text-4xl">
-              AMC operations dashboard
+              {deskScope?.type === "ward"
+                ? `${deskScope.wards[0]} operations`
+                : "AMC operations dashboard"}
             </h1>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-300">
-              Live intake across Ahmedabad wards — triage critical underpass flooding,
-              SG Highway pavement failures, and ward health scores in one control room.
+              {deskScope?.type === "ward"
+                ? `Only tickets filed for ${deskScope.wards.join(", ")} appear here — citizens from any home ward can still report into your desk.`
+                : "Live intake across Ahmedabad wards — triage critical underpass flooding, SG Highway pavement failures, and ward health scores in one control room."}
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
               <Link href="/admin/priority">

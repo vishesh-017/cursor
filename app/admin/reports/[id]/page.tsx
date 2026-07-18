@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
+import { AiAnalysisPanel } from "@/components/report/ai-analysis-panel";
+import { AiVsActualPanel } from "@/components/report/ai-vs-actual";
+import { EvidenceGallery } from "@/components/report/evidence-gallery";
 import { Badge, priorityTone, statusTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,11 +16,14 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import type {
+  AiAnalysis,
   DepartmentId,
   InfrastructureReport,
   Priority,
   ReportStatus,
 } from "@/types";
+import { riskLabel } from "@/utils/risk";
+import { ADMIN_STATUS_ACTIONS, statusLabel } from "@/utils/status";
 
 const statusOptions: ReportStatus[] = [
   "submitted",
@@ -47,6 +53,7 @@ export default function AdminReportDetailPage() {
   const [departmentId, setDepartmentId] = useState<DepartmentId>("roads");
   const [assignedTo, setAssignedTo] = useState("");
   const [timelineNote, setTimelineNote] = useState("");
+  const [analyzing, setAnalyzing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -89,33 +96,144 @@ export default function AdminReportDetailPage() {
     };
   }, [params.id]);
 
+  async function patchReport(
+    body: Record<string, unknown>,
+    successMessage = "Report updated"
+  ) {
+    const res = await fetch(`/api/reports/${params.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const json = (await res.json()) as {
+      success: boolean;
+      message?: string;
+      data?: { report: InfrastructureReport };
+    };
+    if (!res.ok || !json.success || !json.data) {
+      throw new Error(json.message || "Update failed");
+    }
+    const next = json.data.report;
+    setReport(next);
+    setStatus(next.status);
+    setPriority(next.priority);
+    setDepartmentId(next.departmentId);
+    setAssignedTo(next.assignedTo ?? "");
+    toast.success(successMessage);
+    return next;
+  }
+
   async function saveUpdates() {
     setSaving(true);
     try {
-      const res = await fetch(`/api/reports/${params.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status,
+      await patchReport({
+        status,
+        priority,
+        departmentId,
+        assignedTo: assignedTo || undefined,
+        timelineNote: timelineNote || undefined,
+      });
+      setTimelineNote("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Update failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function applyStatus(next: ReportStatus, note: string) {
+    setSaving(true);
+    try {
+      await patchReport(
+        {
+          status: next,
           priority,
           departmentId,
           assignedTo: assignedTo || undefined,
-          timelineNote: timelineNote || undefined,
+          timelineNote: timelineNote.trim() || note,
+        },
+        `Status → ${statusLabel(next)}`
+      );
+      setTimelineNote("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Status update failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function runAmcAiTriage() {
+    if (!report) return;
+    setAnalyzing(true);
+    try {
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: report.title,
+          description: report.description,
+          category: report.category,
+          ward: report.ward,
+          imageUrl: report.imageUrl ?? report.imageUrls?.[0],
+          includeStandards: true,
         }),
       });
       const json = (await res.json()) as {
         success: boolean;
         message?: string;
-        data?: { report: InfrastructureReport };
+        data?: { analysis: AiAnalysis };
       };
       if (!res.ok || !json.success || !json.data) {
-        throw new Error(json.message || "Update failed");
+        throw new Error(json.message || "AI triage failed");
       }
-      setReport(json.data.report);
-      setTimelineNote("");
-      toast.success("Report updated");
+      const analysis = json.data.analysis;
+      // Persist AI prediction only — keep actual AMC priority/department for comparison.
+      const patchRes = await fetch(`/api/reports/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ai: analysis,
+          timelineNote: `Exa AI risk: ${riskLabel(analysis.suggestedPriority)} · confidence ${Math.round(analysis.confidence * 100)}% · ${analysis.issueDetected}`,
+        }),
+      });
+      const patchJson = (await patchRes.json()) as {
+        success: boolean;
+        message?: string;
+        data?: { report: InfrastructureReport };
+      };
+      if (!patchRes.ok || !patchJson.success || !patchJson.data) {
+        throw new Error(patchJson.message || "Failed to save AI triage");
+      }
+      setReport(patchJson.data.report);
+      toast.success(
+        `AI risk ${riskLabel(analysis.suggestedPriority)} · ${Math.round(analysis.confidence * 100)}% confidence`
+      );
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Update failed");
+      toast.error(err instanceof Error ? err.message : "AI triage failed");
+    } finally {
+      setAnalyzing(false);
+    }
+  }
+
+  async function applyAiPrediction() {
+    if (!report?.ai) {
+      toast.error("Run Exa triage first");
+      return;
+    }
+    setSaving(true);
+    try {
+      await patchReport(
+        {
+          priority: report.ai.suggestedPriority,
+          departmentId: report.ai.suggestedDepartment,
+          timelineNote: `Applied AI prediction: ${riskLabel(report.ai.suggestedPriority)} → ${report.ai.suggestedDepartment}`,
+        },
+        "AI prediction applied to ticket"
+      );
+      setPriority(report.ai.suggestedPriority);
+      setDepartmentId(report.ai.suggestedDepartment);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to apply AI");
     } finally {
       setSaving(false);
     }
@@ -160,7 +278,7 @@ export default function AdminReportDetailPage() {
           <div className="mt-3 flex flex-wrap gap-2">
             <Badge tone={priorityTone(report.priority)}>{report.priority}</Badge>
             <Badge tone={statusTone(report.status)}>
-              {report.status.replace("_", " ")}
+              {statusLabel(report.status)}
             </Badge>
             <Badge tone="default">{report.category}</Badge>
           </div>
@@ -170,8 +288,73 @@ export default function AdminReportDetailPage() {
         </Link>
       </div>
 
+      <Card className="glass-card">
+        <CardHeader>
+          <CardTitle>Application status</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-slate-600">
+            Move this ticket through the AMC workflow. Citizens see these updates on
+            their report page.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {ADMIN_STATUS_ACTIONS.map((action) => {
+              const active = report.status === action.status;
+              return (
+                <Button
+                  key={action.status}
+                  type="button"
+                  size="sm"
+                  variant={active ? "default" : "outline"}
+                  disabled={saving || active}
+                  onClick={() => void applyStatus(action.status, action.note)}
+                >
+                  {action.label}
+                </Button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      <AiVsActualPanel report={report} />
+
       <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-4">
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle>Citizen photo evidence</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <EvidenceGallery report={report} />
+              {report.ai?.imageRelevant ? (
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-solid)]/70 p-3 text-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                    AI image scan
+                  </p>
+                  <p className="mt-1 font-semibold capitalize text-slate-900">
+                    {report.ai.imageRelevant.replace("_", " ")}
+                    {typeof report.ai.imageRelevanceScore === "number"
+                      ? ` · ${Math.round(report.ai.imageRelevanceScore * 100)}%`
+                      : ""}
+                  </p>
+                  <p className="mt-1 text-slate-600">
+                    {report.ai.imageScene}
+                    {report.ai.imageDepartmentHint
+                      ? ` · dept ${report.ai.imageDepartmentHint.replace("-", " ")}`
+                      : ""}
+                  </p>
+                  {report.ai.imageIssueHint ? (
+                    <p className="mt-1 text-slate-600">{report.ai.imageIssueHint}</p>
+                  ) : null}
+                  {report.ai.imageNotes ? (
+                    <p className="mt-1 text-xs text-[var(--muted)]">{report.ai.imageNotes}</p>
+                  ) : null}
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+
           <Card className="glass-card">
             <CardHeader>
               <CardTitle>Details</CardTitle>
@@ -206,28 +389,36 @@ export default function AdminReportDetailPage() {
             </CardContent>
           </Card>
 
-          {report.ai ? (
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle>Exa AI analysis</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-slate-700">
-                <p className="font-semibold text-slate-900">{report.ai.detection}</p>
-                <p>{report.ai.summary}</p>
-                <div className="flex flex-wrap gap-2">
-                  <Badge tone={priorityTone(report.ai.suggestedPriority)}>
-                    Suggested {report.ai.suggestedPriority}
-                  </Badge>
-                  <Badge tone="brand">{report.ai.suggestedDepartment}</Badge>
-                </div>
-              </CardContent>
-            </Card>
-          ) : null}
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-display text-lg font-semibold">AMC AI actions</h2>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={analyzing}
+                  onClick={() => void runAmcAiTriage()}
+                >
+                  {analyzing ? "Running Exa…" : "Run Exa risk + confidence"}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={saving || analyzing || !report.ai}
+                  onClick={() => void applyAiPrediction()}
+                >
+                  Apply AI risk to ticket
+                </Button>
+              </div>
+            </div>
+            <AiAnalysisPanel analysis={report.ai ?? null} loading={analyzing} />
+          </div>
         </div>
 
         <Card className="glass-card h-fit">
           <CardHeader>
-            <CardTitle>Assign & update</CardTitle>
+            <CardTitle>AMC assign & update</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -240,7 +431,7 @@ export default function AdminReportDetailPage() {
               >
                 {statusOptions.map((s) => (
                   <option key={s} value={s}>
-                    {s.replace("_", " ")}
+                    {statusLabel(s)}
                   </option>
                 ))}
               </select>

@@ -15,6 +15,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { AiAnalysis, AuthenticityVerdict, DepartmentId, Priority } from "@/types";
+import { riskLabel } from "@/utils/risk";
+
+function imageRelevanceTone(value?: string) {
+  if (value === "relevant") return "success" as const;
+  if (value === "not_relevant") return "danger" as const;
+  return "warning" as const;
+}
 
 const etaByPriority: Record<string, string> = {
   critical: "4–12 hours",
@@ -91,37 +98,45 @@ export function AiAnalysisPanel({
         ? "danger"
         : "warning";
 
+  const predictedRisk = analysis.suggestedPriority || analysis.severity;
+
   return (
     <div className="space-y-4">
       <div className="glass-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span
-              className={`inline-flex h-2.5 w-2.5 rounded-full ${
-                analysis.authenticity === "likely_true"
-                  ? "bg-emerald-500"
-                  : analysis.authenticity === "possibly_fake"
-                    ? "bg-rose-500"
-                    : "bg-amber-500"
-              }`}
-            />
-            <p className="text-sm font-semibold">Exa authenticity check</p>
+            <Sparkles className="h-4 w-4 text-[var(--brand)]" />
+            <p className="text-sm font-semibold">Exa AI risk & confidence</p>
           </div>
-          <Badge tone={authTone}>
-            {analysis.authenticity.replace("_", " ")}
-          </Badge>
+          <div className="flex flex-wrap gap-2">
+            <Badge tone={priorityTone(predictedRisk)}>
+              {riskLabel(predictedRisk)}
+            </Badge>
+            <Badge tone={authTone}>
+              {analysis.authenticity.replace("_", " ")}
+            </Badge>
+          </div>
         </div>
         <div className="mt-4 space-y-3">
+          <ConfidenceMeter
+            value={analysis.confidence}
+            label="AI confidence score"
+          />
           <ConfidenceMeter
             value={analysis.authenticityScore}
             label="True / fake confidence"
           />
-          <ConfidenceMeter value={analysis.confidence} label="Triage confidence" />
+          {typeof analysis.imageRelevanceScore === "number" ? (
+            <ConfidenceMeter
+              value={analysis.imageRelevanceScore}
+              label="Photo relevance to Urbanexus"
+            />
+          ) : null}
           <div>
             <div className="mb-1 flex items-center justify-between text-sm">
-              <span className="text-[var(--muted)]">Priority score</span>
+              <span className="text-[var(--muted)]">AI priority score</span>
               <span className="font-semibold tabular-nums">
-                {analysis.priorityScore}/100
+                {analysis.priorityScore}/100 · {riskLabel(predictedRisk)}
               </span>
             </div>
             <Progress
@@ -137,6 +152,38 @@ export function AiAnalysisPanel({
           </div>
         </div>
       </div>
+
+      {analysis.imageRelevant ? (
+        <div className="glass-card p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-semibold">AI photo scan</p>
+            <Badge tone={imageRelevanceTone(analysis.imageRelevant)}>
+              {analysis.imageRelevant.replace("_", " ")}
+            </Badge>
+          </div>
+          <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+            <p>
+              <span className="text-[var(--muted)]">Scene · </span>
+              {analysis.imageScene ?? "—"}
+            </p>
+            <p>
+              <span className="text-[var(--muted)]">Dept from photo · </span>
+              <span className="capitalize">
+                {analysis.imageDepartmentHint?.replace("-", " ") ?? "—"}
+              </span>
+            </p>
+            <p className="sm:col-span-2">
+              <span className="text-[var(--muted)]">Issue in frame · </span>
+              {analysis.imageIssueHint ?? "—"}
+            </p>
+            {analysis.imageNotes ? (
+              <p className="sm:col-span-2 text-xs text-[var(--muted)]">
+                {analysis.imageNotes}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       {editable && onChange ? (
         <div className="glass-card space-y-3 p-5">
