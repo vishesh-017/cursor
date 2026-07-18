@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Source_Sans_3 } from "next/font/google";
 import { SiteHeader } from "@/components/layout/site-header";
+import { AppProviders } from "@/components/providers/app-providers";
 import { siteConfig } from "@/config/site";
 import "./globals.css";
 
@@ -30,8 +31,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${display.variable} ${body.variable} antialiased`}>
-        <SiteHeader />
-        <main className="min-h-[calc(100vh-4rem)]">{children}</main>
+        <AppProviders>
+          <SiteHeader />
+          <main className="min-h-[calc(100vh-4rem)]">{children}</main>
+        </AppProviders>
       </body>
     </html>
   );

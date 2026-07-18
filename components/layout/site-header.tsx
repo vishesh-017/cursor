@@ -8,14 +8,37 @@ import { cn } from "@/utils/cn";
 
 const links = [
   { href: "/", label: "Home" },
-  { href: "/map", label: "Map" },
-  { href: "/report", label: "Report" },
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/intel", label: "AI Intel" },
+  { href: "/map", label: "GIS Map" },
+  { href: "/intel", label: "Exa Intel" },
+  { href: "/login", label: "Sign in" },
+  { href: "/citizen/dashboard", label: "Citizen" },
+  { href: "/admin/dashboard", label: "Admin" },
 ];
 
 export function SiteHeader() {
   const pathname = usePathname();
+  const hideOnAuthShell =
+    pathname.startsWith("/citizen") || pathname.startsWith("/admin");
+
+  if (hideOnAuthShell) {
+    return (
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/90 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
+          <Link href="/" className="text-lg font-semibold text-white">
+            {siteConfig.name}
+          </Link>
+          <div className="flex gap-3 text-sm text-slate-300">
+            <Link href="/map" className="hover:text-white">
+              GIS Map
+            </Link>
+            <Link href="/intel" className="hover:text-white">
+              Exa Intel
+            </Link>
+          </div>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/80 backdrop-blur-md">
@@ -32,7 +55,7 @@ export function SiteHeader() {
             AMC
           </span>
         </Link>
-        <nav className="flex items-center gap-1 sm:gap-2">
+        <nav className="flex flex-wrap items-center justify-end gap-1 sm:gap-2">
           {links.map((link) => {
             const active = pathname === link.href;
             return (

@@ -5,10 +5,18 @@ AI-powered Urban Infrastructure Intelligence Platform for **Ahmedabad Municipal 
 ## Stack
 
 - Next.js 15 (App Router) + React 19 + TypeScript
-- Tailwind CSS + Framer Motion + Recharts
-- Leaflet / OpenStreetMap (client-only)
-- Supabase-ready clients (Auth/DB/Storage)
-- **Exa AI** for search, answer, find-similar, and research
+- Tailwind CSS + Framer Motion + Recharts + Sonner
+- Leaflet / OpenStreetMap (clusters, heatmap, ward boundaries)
+- Supabase-ready clients
+- **Gemini** for infrastructure vision analysis
+- **Exa AI** for standards research and contextual knowledge
+
+## Demo accounts
+
+| Role | Email | Password |
+|------|-------|----------|
+| Citizen | `aarav.sharma@gmail.com` | `demo1234` |
+| Admin | `admin@amc.gov.in` | `admin1234` |
 
 ## Quick start
 
@@ -22,46 +30,25 @@ npm run dev
 
 ```env
 EXA_API_KEY=
+GEMINI_API_KEY=
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 ```
 
-The app builds and deploys without keys. Exa routes return a clear `503` if `EXA_API_KEY` is missing. Reports use an in-memory service until Supabase tables are wired.
+The app builds without keys. Gemini falls back to heuristic analysis; Exa routes return clear errors when unset.
 
-## Scripts
+## Portals
 
-- `npm run dev` — local development
-- `npm run build` — production build (Vercel)
-- `npm run start` — serve production build
-- `npm run lint` — ESLint
+- `/login` — authentication
+- `/citizen/*` — citizen dashboard, reports, rewards, leaderboard, notifications, profile
+- `/admin/*` — ops dashboard, report management, priority queue, analytics, urban pulse, wards, departments
+- `/map` — enterprise GIS
+- `/intel` — Exa research console
 
 ## Deploy on Vercel
 
-1. Import this repo in Vercel
-2. Framework preset: Next.js
-3. Add env vars from `.env.example`
+1. Import the GitHub repo
+2. Framework: Next.js
+3. Add env vars
 4. Deploy
-
-## API
-
-All routes under `app/api/` return:
-
-```json
-{ "success": true, "data": {}, "message": "" }
-```
-
-or
-
-```json
-{ "success": false, "error": "", "message": "" }
-```
-
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/api/health` | Health + env status |
-| GET/POST | `/api/reports` | List / create reports |
-| POST | `/api/search` | Exa search |
-| POST | `/api/answer` | Exa answer |
-| POST | `/api/research` | Exa research brief |
-| POST | `/api/similar` | Exa find similar |

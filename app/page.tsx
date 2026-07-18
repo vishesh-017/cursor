@@ -25,27 +25,28 @@ export default function HomePage() {
           {siteConfig.name}
         </h1>
         <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-200 sm:text-lg">
-          AI-powered urban infrastructure intelligence for Ahmedabad — map issues,
-          triage reports, and brief AMC officers with Exa research.
+          AI-powered urban infrastructure intelligence for Ahmedabad — Gemini
+          vision triage, Exa research, enterprise GIS, and AMC operations in one
+          platform.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
-            href="/dashboard"
+            href="/login"
             className="inline-flex h-11 items-center rounded-md bg-teal-500 px-5 text-sm font-medium text-white hover:bg-teal-400"
           >
-            Open ops dashboard
+            Sign in to portal
           </Link>
           <Link
-            href="/report"
+            href="/map"
             className="inline-flex h-11 items-center rounded-md border border-white/30 bg-white/10 px-5 text-sm font-medium text-white backdrop-blur hover:bg-white/20"
           >
-            Report an issue
+            Open GIS map
           </Link>
           <Link
-            href="/intel"
+            href="/admin/dashboard"
             className="inline-flex h-11 items-center rounded-md px-5 text-sm font-medium text-teal-100 hover:text-white"
           >
-            Run Exa intel →
+            AMC command center →
           </Link>
         </div>
       </div>
