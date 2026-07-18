@@ -374,7 +374,7 @@ export default function NewCitizenReportPage() {
     if (step === 2) {
       return (
         title.trim().length >= 4 &&
-        description.trim().length >= 10 &&
+        description.trim().length >= 5 &&
         Boolean(wardName) &&
         address.trim().length >= 4
       );

@@ -88,7 +88,7 @@ const aiSchema = z.object({
 
 const createSchema = z.object({
   title: z.string().min(4).max(160),
-  description: z.string().min(10).max(3000),
+  description: z.string().min(5).max(3000),
   category: z.enum([
     "roads",
     "water",

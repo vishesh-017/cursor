@@ -12,7 +12,7 @@ import { siteConfig } from "@/config/site";
 
 const schema = z.object({
   title: z.string().min(4, "Title is required"),
-  description: z.string().min(10, "Add more detail"),
+  description: z.string().min(5, "Add a short description"),
   category: z.enum(["roads", "water", "drainage", "lighting", "waste", "other"]),
   priority: z.enum(["low", "medium", "high", "critical"]),
   ward: z.string().min(2, "Ward is required"),

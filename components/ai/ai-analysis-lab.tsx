@@ -145,8 +145,8 @@ export function AiAnalysisLab() {
   }, []);
 
   async function runPrediction() {
-    if (title.trim().length < 4 || description.trim().length < 10) {
-      toast.error("Add a longer title and description");
+    if (title.trim().length < 4 || description.trim().length < 5) {
+      toast.error("Add a title and a short description (at least 5 characters)");
       return;
     }
     setLoading(true);

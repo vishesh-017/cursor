@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 const schema = z.object({
   title: z.string().min(4),
-  description: z.string().min(10),
+  description: z.string().min(5),
   category: z.string().min(2),
   ward: z.string().optional(),
   imageUrl: z.string().optional(),
