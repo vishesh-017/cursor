@@ -8,6 +8,11 @@ import { ModerateCitizen } from "@/components/admin/moderate-citizen";
 import { AiAnalysisPanel } from "@/components/report/ai-analysis-panel";
 import { AiVsActualPanel } from "@/components/report/ai-vs-actual";
 import { EvidenceGallery } from "@/components/report/evidence-gallery";
+import {
+  evidenceRiskLevel,
+  PhotoEvidenceAlert,
+  PhotoEvidenceChips,
+} from "@/components/report/photo-evidence-alert";
 import { Badge, priorityTone, statusTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +29,7 @@ import type {
   Priority,
   ReportStatus,
 } from "@/types";
+import { cn } from "@/utils/cn";
 import { riskLabel } from "@/utils/risk";
 import { ADMIN_STATUS_ACTIONS, statusLabel } from "@/utils/status";
 
@@ -309,12 +315,15 @@ export default function AdminReportDetailPage() {
               {statusLabel(report.status)}
             </Badge>
             <Badge tone="default">{report.category}</Badge>
+            <PhotoEvidenceChips ai={report.ai} />
           </div>
         </div>
         <Link href="/admin/reports">
           <Button variant="outline">Inbox</Button>
         </Link>
       </div>
+
+      <PhotoEvidenceAlert ai={report.ai} />
 
       <Card className="glass-card">
         <CardHeader>
@@ -387,27 +396,36 @@ export default function AdminReportDetailPage() {
 
       <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-4">
-          <Card className="glass-card">
+          <Card
+            className={cn(
+              "glass-card",
+              evidenceRiskLevel(report.ai) === "high" &&
+                "border-rose-300/70 dark:border-rose-500/40"
+            )}
+          >
             <CardHeader>
               <CardTitle>Citizen photo evidence</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <EvidenceGallery report={report} />
-              {report.ai?.imageRelevant ? (
+              {report.ai?.imageRelevant || report.ai?.imageOrigin ? (
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-solid)]/70 p-3 text-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
-                    AI image scan
-                  </p>
-                  <p className="mt-1 font-semibold capitalize text-[var(--foreground)]">
-                    {report.ai.imageRelevant.replace("_", " ")}
-                    {typeof report.ai.imageRelevanceScore === "number"
-                      ? ` · ${Math.round(report.ai.imageRelevanceScore * 100)}%`
-                      : ""}
-                  </p>
-                  <p className="mt-1 text-[var(--muted)]">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                      AI image scan for officers
+                    </p>
+                    <PhotoEvidenceChips ai={report.ai} />
+                  </div>
+                  <p className="mt-2 text-[var(--muted)]">
                     {report.ai.imageScene}
                     {report.ai.imageDepartmentHint
                       ? ` · dept ${report.ai.imageDepartmentHint.replace("-", " ")}`
+                      : ""}
+                    {typeof report.ai.imageRelevanceScore === "number"
+                      ? ` · relevance ${Math.round(report.ai.imageRelevanceScore * 100)}%`
+                      : ""}
+                    {typeof report.ai.imageOriginScore === "number"
+                      ? ` · origin ${Math.round(report.ai.imageOriginScore * 100)}%`
                       : ""}
                   </p>
                   {report.ai.imageIssueHint ? (

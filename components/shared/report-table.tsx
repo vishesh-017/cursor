@@ -1,5 +1,9 @@
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
+import {
+  evidenceRiskLevel,
+  PhotoEvidenceChips,
+} from "@/components/report/photo-evidence-alert";
 import { Badge, priorityTone, statusTone } from "@/components/ui/badge";
 import type { InfrastructureReport, ReportStatus } from "@/types";
 import { aiQueueScore } from "@/utils/ai-priority";
@@ -89,15 +93,25 @@ export function ReportTable({
                   ) : null}
                   <td className={cell}>
                     {report.imageUrl || report.imageUrls?.[0] ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={report.imageUrl || report.imageUrls?.[0]}
-                        alt=""
-                        className={cn(
-                          "rounded-lg object-cover ring-1 ring-[var(--border)]",
-                          dense ? "h-10 w-14" : "h-12 w-16 rounded-xl"
-                        )}
-                      />
+                      <div className="relative inline-block">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={report.imageUrl || report.imageUrls?.[0]}
+                          alt=""
+                          className={cn(
+                            "rounded-lg object-cover ring-1",
+                            dense ? "h-10 w-14" : "h-12 w-16 rounded-xl",
+                            evidenceRiskLevel(report.ai) === "high"
+                              ? "ring-rose-400"
+                              : evidenceRiskLevel(report.ai) === "watch"
+                                ? "ring-amber-400"
+                                : "ring-[var(--border)]"
+                          )}
+                        />
+                        {evidenceRiskLevel(report.ai) === "high" ? (
+                          <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900" />
+                        ) : null}
+                      </div>
                     ) : (
                       <span
                         className={cn(
@@ -119,6 +133,9 @@ export function ReportTable({
                     <p className="mt-0.5 text-[11px] tabular-nums text-[var(--muted)]">
                       {report.id}
                     </p>
+                    {adminActions || showAiScore ? (
+                      <PhotoEvidenceChips ai={report.ai} className="mt-1" />
+                    ) : null}
                     {showAiScore && report.ai?.issueDetected ? (
                       <p className="mt-0.5 line-clamp-1 text-[11px] text-[var(--muted)]">
                         {report.ai.issueDetected}

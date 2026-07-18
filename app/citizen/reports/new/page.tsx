@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  AlertTriangle,
   Camera,
   Check,
   ChevronLeft,
@@ -11,6 +12,8 @@ import {
   ImagePlus,
   MapPin,
   Navigation,
+  ShieldAlert,
+  Sparkles,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -437,13 +440,27 @@ export default function NewCitizenReportPage() {
       <div className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
         <div className="glass-card space-y-5 p-5 sm:p-6">
           {step === 1 ? (
-            <div className="space-y-4">
-              <div>
-                <h2 className="font-display text-xl font-semibold">Upload site photos</h2>
-                <p className="mt-1 text-sm text-[var(--muted)]">
-                  Capture the real defect on site. Selfies, memes, stock art, and
-                  AI-generated images are flagged and lower authenticity for AMC.
-                </p>
+            <div className="space-y-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-display text-xl font-semibold">
+                    Upload site photos
+                  </h2>
+                  <p className="mt-1 max-w-xl text-sm text-[var(--muted)]">
+                    Photograph the defect itself — road, drain, lamp, or pipe.
+                    Selfies and AI images are flagged for AMC officers.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-1 text-[11px] font-semibold text-teal-800 ring-1 ring-teal-200 dark:bg-teal-500/10 dark:text-teal-100 dark:ring-teal-500/30">
+                    <Camera className="h-3 w-3" />
+                    Site photo
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-800 ring-1 ring-rose-200 dark:bg-rose-500/10 dark:text-rose-100 dark:ring-rose-500/30">
+                    <ShieldAlert className="h-3 w-3" />
+                    No selfie / AI art
+                  </span>
+                </div>
               </div>
 
               <label
@@ -457,16 +474,20 @@ export default function NewCitizenReportPage() {
                   setDragOver(false);
                   if (e.dataTransfer.files?.length) simulateUpload(e.dataTransfer.files);
                 }}
-                className={`flex cursor-pointer flex-col items-center justify-center rounded-[22px] border-2 border-dashed px-6 py-12 text-center transition ${
+                className={`group relative flex cursor-pointer flex-col items-center justify-center overflow-hidden rounded-[24px] border-2 border-dashed px-6 py-11 text-center transition ${
                   dragOver
                     ? "border-[var(--brand)] bg-[var(--brand-soft)]"
-                    : "border-[var(--border)] bg-white/40 dark:bg-white/5"
+                    : "border-[var(--border)] bg-gradient-to-b from-white to-slate-50/80 dark:from-white/5 dark:to-transparent"
                 }`}
               >
-                <ImagePlus className="h-10 w-10 text-[var(--brand)]" />
-                <p className="mt-3 text-sm font-semibold">Drag & drop images here</p>
+                <span className="grid h-14 w-14 place-items-center rounded-2xl bg-teal-500/10 text-[var(--brand)] ring-1 ring-teal-500/20 transition group-hover:scale-105">
+                  <ImagePlus className="h-7 w-7" />
+                </span>
+                <p className="mt-3 text-sm font-semibold">
+                  Drop a clear site photo here
+                </p>
                 <p className="mt-1 text-xs text-[var(--muted)]">
-                  or browse from phone / desktop · JPG, PNG
+                  or tap to browse · JPG / PNG · instant evidence check
                 </p>
                 <input
                   type="file"
@@ -483,7 +504,7 @@ export default function NewCitizenReportPage() {
               {uploading ? (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs text-[var(--muted)]">
-                    <span>Preparing preview…</span>
+                    <span>Scanning evidence…</span>
                     <span>{uploadProgress}%</span>
                   </div>
                   <Progress value={uploadProgress} tone="brand" />
@@ -492,47 +513,79 @@ export default function NewCitizenReportPage() {
 
               {previews.length ? (
                 <div className="space-y-3">
-                  <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {previews.map((file) => {
                       const bad =
                         file.scan.imageRelevant === "not_relevant" ||
                         file.scan.imageOrigin === "possibly_ai_generated";
                       const watch =
-                        file.scan.imageRelevant === "uncertain" ||
-                        file.scan.imageOrigin === "uncertain";
+                        !bad &&
+                        (file.scan.imageRelevant === "uncertain" ||
+                          file.scan.imageOrigin === "uncertain");
+                      const headline = bad
+                        ? file.scan.imageOrigin === "possibly_ai_generated"
+                          ? "Possibly AI-generated"
+                          : "Not a proper site photo"
+                        : watch
+                          ? "Needs a clearer site photo"
+                          : "Looks like usable evidence";
                       return (
-                        <div
+                        <article
                           key={file.id}
-                          className={`group relative overflow-hidden rounded-2xl border ${
+                          className={`overflow-hidden rounded-[20px] border bg-[var(--surface-solid)] shadow-sm ${
                             bad
-                              ? "border-rose-400 ring-1 ring-rose-300/60"
+                              ? "border-rose-300 ring-1 ring-rose-200/80 dark:border-rose-500/40"
                               : watch
-                                ? "border-amber-300"
-                                : "border-[var(--border)]"
+                                ? "border-amber-300 dark:border-amber-500/40"
+                                : "border-emerald-200/80 dark:border-emerald-500/30"
                           }`}
                         >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={file.dataUrl}
-                            alt={file.name}
-                            className="h-36 w-full object-cover"
-                          />
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setPreviews((prev) =>
-                                prev.filter((p) => p.id !== file.id)
-                              )
-                            }
-                            className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-950/70 text-white opacity-90 transition hover:bg-rose-600"
-                            aria-label={`Remove ${file.name}`}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                          <div className="space-y-1 bg-slate-950/70 px-2 py-1.5">
-                            <p className="truncate text-[10px] text-white">
-                              {file.name}
-                            </p>
+                          <div className="relative">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={file.dataUrl}
+                              alt={file.name}
+                              className="h-40 w-full object-cover"
+                            />
+                            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/85 to-transparent px-3 pb-2.5 pt-10">
+                              <p className="truncate text-xs font-medium text-white">
+                                {file.name}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreviews((prev) =>
+                                  prev.filter((p) => p.id !== file.id)
+                                )
+                              }
+                              className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-950/70 text-white transition hover:bg-rose-600"
+                              aria-label={`Remove ${file.name}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          <div className="space-y-2.5 p-3">
+                            <div className="flex items-start gap-2">
+                              {bad ? (
+                                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
+                              ) : watch ? (
+                                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                              ) : (
+                                <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                              )}
+                              <p
+                                className={`text-sm font-semibold ${
+                                  bad
+                                    ? "text-rose-800 dark:text-rose-200"
+                                    : watch
+                                      ? "text-amber-900 dark:text-amber-100"
+                                      : "text-emerald-800 dark:text-emerald-200"
+                                }`}
+                              >
+                                {headline}
+                              </p>
+                            </div>
                             <div className="flex flex-wrap gap-1">
                               <Badge
                                 tone={
@@ -544,7 +597,11 @@ export default function NewCitizenReportPage() {
                                 }
                                 className="normal-case"
                               >
-                                {file.scan.imageRelevant.replace("_", " ")}
+                                {file.scan.imageRelevant === "not_relevant"
+                                  ? "Unrelated"
+                                  : file.scan.imageRelevant === "relevant"
+                                    ? "Relevant"
+                                    : "Unclear"}
                               </Badge>
                               <Badge
                                 tone={
@@ -558,38 +615,69 @@ export default function NewCitizenReportPage() {
                                 className="normal-case"
                               >
                                 {file.scan.imageOrigin === "possibly_ai_generated"
-                                  ? "AI suspicion"
+                                  ? "AI-generated?"
                                   : file.scan.imageOrigin === "likely_photo"
-                                    ? "Likely photo"
+                                    ? "Likely real photo"
                                     : "Origin unsure"}
                               </Badge>
                             </div>
+                            {file.scan.imageWarnings[0] ? (
+                              <p className="text-[11px] leading-relaxed text-[var(--muted)]">
+                                {file.scan.imageWarnings[0]}
+                              </p>
+                            ) : null}
                           </div>
-                        </div>
+                        </article>
                       );
                     })}
                   </div>
-                  {previews.some((p) => p.scan.imageWarnings.length) ? (
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
-                      <p className="font-semibold">Evidence check</p>
-                      <ul className="mt-1 list-disc space-y-0.5 pl-4 text-xs">
+                  {previews.some(
+                    (p) =>
+                      p.scan.imageRelevant === "not_relevant" ||
+                      p.scan.imageOrigin === "possibly_ai_generated"
+                  ) ? (
+                    <div className="rounded-[20px] border border-rose-200 bg-rose-50/90 px-4 py-3 dark:border-rose-500/30 dark:bg-rose-500/10">
+                      <p className="flex items-center gap-2 text-sm font-semibold text-rose-900 dark:text-rose-100">
+                        <ShieldAlert className="h-4 w-4" />
+                        AMC officers will see this photo as improper evidence
+                      </p>
+                      <ul className="mt-2 space-y-1 text-xs text-rose-900/90 dark:text-rose-100/90">
                         {Array.from(
                           new Set(
                             previews.flatMap((p) => p.scan.imageWarnings)
                           )
                         )
-                          .slice(0, 5)
+                          .slice(0, 4)
                           .map((w) => (
-                            <li key={w}>{w}</li>
+                            <li key={w}>· {w}</li>
+                          ))}
+                      </ul>
+                      <p className="mt-2 text-[11px] text-rose-800/80 dark:text-rose-200/80">
+                        Replace with a clear photo of the pothole, drain, or lamp
+                        before submitting for faster AMC action.
+                      </p>
+                    </div>
+                  ) : previews.some((p) => p.scan.imageWarnings.length) ? (
+                    <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+                      <p className="font-semibold">Evidence tip</p>
+                      <ul className="mt-1 space-y-0.5 text-xs">
+                        {Array.from(
+                          new Set(
+                            previews.flatMap((p) => p.scan.imageWarnings)
+                          )
+                        )
+                          .slice(0, 3)
+                          .map((w) => (
+                            <li key={w}>· {w}</li>
                           ))}
                       </ul>
                     </div>
                   ) : null}
                 </div>
               ) : (
-                <p className="rounded-2xl border border-[var(--border)] bg-white/40 px-4 py-3 text-sm text-[var(--muted)] dark:bg-white/5">
-                  No photos yet — you can continue and pin the issue on SG Highway,
-                  Drive-In Road, or your ward landmark.
+                <p className="rounded-[20px] border border-dashed border-[var(--border)] bg-white/40 px-4 py-3 text-sm text-[var(--muted)] dark:bg-white/5">
+                  No photos yet — you can continue, but a real site photo helps AMC
+                  verify and clear the ticket faster.
                 </p>
               )}
             </div>
