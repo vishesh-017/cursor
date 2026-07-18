@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { fail, fromError, ok } from "@/lib/api/response";
+import { buildFraudOpsSummary } from "@/lib/ai/fraud-insights";
 import {
   buildDepartmentPulse,
   buildOpsInsight,
@@ -11,14 +12,16 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const [departments, patterns] = await Promise.all([
+    const [departments, patterns, fraud] = await Promise.all([
       buildDepartmentPulse(),
       findIssuePatterns(6),
+      buildFraudOpsSummary(30),
     ]);
     return ok(
       {
         departments,
         patterns,
+        fraud,
       },
       "AI ops pulse"
     );
@@ -69,9 +72,10 @@ export async function POST(request: Request) {
       priority: analysis?.suggestedPriority,
     });
 
-    const [departments, patterns] = await Promise.all([
+    const [departments, patterns, fraud] = await Promise.all([
       buildDepartmentPulse(),
       findIssuePatterns(5),
+      buildFraudOpsSummary(30),
     ]);
 
     return ok(
@@ -80,6 +84,7 @@ export async function POST(request: Request) {
         ops,
         departments,
         patterns,
+        fraud,
       },
       "AI operational prediction ready"
     );

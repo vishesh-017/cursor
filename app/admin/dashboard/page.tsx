@@ -297,12 +297,29 @@ export default function AdminDashboardPage() {
           <h2 className="font-display text-lg font-semibold">Category mix</h2>
           <div className="mt-4 h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.byCategory}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="category" tick={{ fontSize: 12 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Bar dataKey="count" fill="#0f172a" radius={[6, 6, 0, 0]} />
+              <BarChart
+                data={[...stats.byCategory]
+                  .map((r) => ({
+                    ...r,
+                    category:
+                      r.category.charAt(0).toUpperCase() +
+                      r.category.slice(1).toLowerCase(),
+                  }))
+                  .sort((a, b) => b.count - a.count)}
+                barCategoryGap="28%"
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="category" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#94a3b8" }} axisLine={false} tickLine={false} width={28} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "var(--surface-solid)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 12,
+                  }}
+                  cursor={{ fill: "rgba(43, 181, 174, 0.08)" }}
+                />
+                <Bar dataKey="count" fill="#2bb5ae" radius={[8, 8, 0, 0]} maxBarSize={48} />
               </BarChart>
             </ResponsiveContainer>
           </div>

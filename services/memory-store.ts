@@ -11,9 +11,11 @@ import {
 import type {
   DepartmentRankingEntry,
   InfrastructureReport,
+  ModerationAction,
   NotificationItem,
   ReportStatus,
   UrbanPulseMetrics,
+  UserModerationEvent,
   UserProfile,
   WardRankingEntry,
 } from "@/types";
@@ -22,6 +24,8 @@ import { getDashboardStats as computeStats } from "@/services/analytics";
 type UrbanexusStore = {
   reports: InfrastructureReport[];
   notifications: NotificationItem[];
+  users: UserProfile[];
+  moderationEvents: UserModerationEvent[];
 };
 
 declare global {
@@ -34,21 +38,114 @@ function getStore(): UrbanexusStore {
     globalThis.__urbanexusStore = {
       reports: structuredClone(seedReports),
       notifications: structuredClone(seedNotifications),
+      users: structuredClone(users).map((u) => ({
+        ...u,
+        accountStatus: u.accountStatus ?? "active",
+        flagCount: u.flagCount ?? 0,
+      })),
+      moderationEvents: [],
     };
+  } else if (!globalThis.__urbanexusStore.users) {
+    // Hot-reload older store shapes
+    globalThis.__urbanexusStore.users = structuredClone(users).map((u) => ({
+      ...u,
+      accountStatus: u.accountStatus ?? "active",
+      flagCount: u.flagCount ?? 0,
+    }));
+    globalThis.__urbanexusStore.moderationEvents =
+      globalThis.__urbanexusStore.moderationEvents ?? [];
   }
   return globalThis.__urbanexusStore;
 }
 
 export function memoryGetUsers() {
-  return users;
+  return [...getStore().users];
 }
 
 export function memoryGetUserById(id: string): UserProfile | undefined {
-  return users.find((u) => u.id === id);
+  return getStore().users.find((u) => u.id === id);
 }
 
 export function memoryGetUserByEmail(email: string): UserProfile | undefined {
-  return users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+  return getStore().users.find(
+    (u) => u.email.toLowerCase() === email.toLowerCase()
+  );
+}
+
+export function memoryGetCitizens() {
+  return getStore().users.filter((u) => u.role === "citizen");
+}
+
+export function memoryModerateUser(input: {
+  userId: string;
+  action: ModerationAction;
+  reason: string;
+  reportId?: string;
+  actorId: string;
+  actorName: string;
+}): UserProfile | null {
+  const store = getStore();
+  const user = store.users.find((u) => u.id === input.userId);
+  if (!user || user.role !== "citizen") return null;
+
+  const now = new Date().toISOString();
+  const reason = input.reason.trim();
+  if (reason.length < 4) return null;
+
+  if (input.action === "flag") {
+    user.accountStatus = "flagged";
+    user.flagCount = (user.flagCount ?? 0) + 1;
+  } else if (input.action === "suspend") {
+    user.accountStatus = "suspended";
+  } else if (input.action === "remove") {
+    user.accountStatus = "removed";
+  } else if (input.action === "reinstate") {
+    user.accountStatus = "active";
+    user.flagCount = 0;
+  }
+
+  user.moderationNote = reason;
+  user.moderatedAt = now;
+  user.moderatedBy = input.actorName;
+
+  store.moderationEvents.unshift({
+    id: `mod-${Date.now()}`,
+    userId: user.id,
+    action: input.action,
+    reason,
+    reportId: input.reportId,
+    actorId: input.actorId,
+    actorName: input.actorName,
+    createdAt: now,
+  });
+
+  store.notifications.unshift({
+    id: `n-mod-${Date.now()}`,
+    userId: user.id,
+    title:
+      input.action === "reinstate"
+        ? "Account reinstated"
+        : input.action === "flag"
+          ? "Account flagged for review"
+          : input.action === "suspend"
+            ? "Account suspended"
+            : "Account removed",
+    body:
+      input.action === "reinstate"
+        ? "Your Urbanexus citizen account has been reinstated by AMC."
+        : `AMC moderation (${input.action}): ${reason}`,
+    createdAt: now,
+    read: false,
+    href: "/citizen/profile",
+  });
+
+  return { ...user };
+}
+
+export function memoryGetModerationEvents(userId?: string) {
+  const events = getStore().moderationEvents;
+  if (!userId) return [...events];
+  return events.filter((e) => e.userId === userId);
 }
 
 export function memoryListReports(filters?: {

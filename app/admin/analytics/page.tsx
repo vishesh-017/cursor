@@ -24,6 +24,11 @@ import type {
   UrbanPulseMetrics,
   Ward,
 } from "@/types";
+import {
+  chartAxisTick,
+  chartColors,
+  chartTooltipStyle,
+} from "@/utils/chart-theme";
 
 export default function AdminAnalyticsPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -95,6 +100,16 @@ export default function AdminAnalyticsPage() {
     efficiency: d.efficiency,
   }));
 
+  const categoryChart = [...stats.byCategory]
+    .map((row) => ({
+      ...row,
+      category:
+        row.category.charAt(0).toUpperCase() + row.category.slice(1).toLowerCase(),
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  const wardChart = [...stats.byWard].sort((a, b) => b.count - a.count);
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -132,42 +147,86 @@ export default function AdminAnalyticsPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="glass-card p-5">
-          <h2 className="font-display text-lg font-semibold">Weekly report intake</h2>
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-solid)] p-5">
+          <h2 className="text-lg font-semibold text-[var(--foreground)]">
+            Weekly report intake
+          </h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
             Day-wise civic tickets entering AMC desks
           </p>
-          <div className="mt-4 h-80">
+          <div className="mt-4 h-72 sm:h-80">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={stats.weeklyTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                <Tooltip />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke={chartColors.grid}
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="day"
+                  tick={chartAxisTick}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={chartAxisTick}
+                  axisLine={false}
+                  tickLine={false}
+                  width={32}
+                />
+                <Tooltip contentStyle={chartTooltipStyle} />
                 <Line
                   type="monotone"
                   dataKey="reports"
-                  stroke="#0f766e"
+                  stroke={chartColors.brand}
                   strokeWidth={2.5}
+                  dot={{ r: 4, fill: chartColors.brand, strokeWidth: 0 }}
+                  activeDot={{ r: 6 }}
                 />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="glass-card p-5">
-          <h2 className="font-display text-lg font-semibold">Reports by category</h2>
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-solid)] p-5">
+          <h2 className="text-lg font-semibold text-[var(--foreground)]">
+            Reports by category
+          </h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            Roads, drainage, lighting, and related assets
+            Sorted by volume · roads, drainage, lighting, and related assets
           </p>
-          <div className="mt-4 h-80">
+          <div className="mt-4 h-72 sm:h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.byCategory}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="category" tick={{ fontSize: 12 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Bar dataKey="count" fill="#0f172a" radius={[6, 6, 0, 0]} />
+              <BarChart data={categoryChart} barCategoryGap="28%">
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke={chartColors.grid}
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="category"
+                  tick={{ ...chartAxisTick, fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={chartAxisTick}
+                  axisLine={false}
+                  tickLine={false}
+                  width={28}
+                />
+                <Tooltip
+                  contentStyle={chartTooltipStyle}
+                  cursor={{ fill: "rgba(43, 181, 174, 0.08)" }}
+                />
+                <Bar
+                  dataKey="count"
+                  fill={chartColors.brand}
+                  radius={[8, 8, 0, 0]}
+                  maxBarSize={48}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -175,48 +234,95 @@ export default function AdminAnalyticsPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="glass-card p-5">
-          <h2 className="font-display text-lg font-semibold">Ward volume</h2>
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-solid)] p-5">
+          <h2 className="text-lg font-semibold text-[var(--foreground)]">
+            Ward volume
+          </h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
             Hotspot intensity across Ahmedabad wards
           </p>
-          <div className="mt-4 h-80">
+          <div className="mt-4 h-72 sm:h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.byWard}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="ward" tick={{ fontSize: 11 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Bar dataKey="count" fill="#0f766e" radius={[6, 6, 0, 0]} />
+              <BarChart data={wardChart} barCategoryGap="24%">
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke={chartColors.grid}
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="ward"
+                  tick={{ ...chartAxisTick, fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={chartAxisTick}
+                  axisLine={false}
+                  tickLine={false}
+                  width={28}
+                />
+                <Tooltip
+                  contentStyle={chartTooltipStyle}
+                  cursor={{ fill: "rgba(43, 181, 174, 0.08)" }}
+                />
+                <Bar
+                  dataKey="count"
+                  fill={chartColors.brandStrong}
+                  radius={[8, 8, 0, 0]}
+                  maxBarSize={44}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="glass-card p-5">
-          <h2 className="font-display text-lg font-semibold">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-solid)] p-5">
+          <h2 className="text-lg font-semibold text-[var(--foreground)]">
             Department open vs resolved
           </h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
             Throughput balance for municipal desks
           </p>
-          <div className="mt-4 h-80">
+          <div className="mt-4 h-72 sm:h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={deptChart}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <BarChart data={deptChart} barCategoryGap="20%">
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke={chartColors.grid}
+                  vertical={false}
+                />
                 <XAxis
                   dataKey="name"
-                  tick={{ fontSize: 10 }}
+                  tick={{ ...chartAxisTick, fontSize: 10 }}
                   interval={0}
-                  angle={-20}
+                  angle={-18}
                   textAnchor="end"
                   height={70}
+                  axisLine={false}
+                  tickLine={false}
                 />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="open" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="resolved" fill="#0f766e" radius={[4, 4, 0, 0]} />
+                <YAxis
+                  allowDecimals={false}
+                  tick={chartAxisTick}
+                  axisLine={false}
+                  tickLine={false}
+                  width={28}
+                />
+                <Tooltip contentStyle={chartTooltipStyle} />
+                <Legend wrapperStyle={{ fontSize: 12, color: chartColors.tick }} />
+                <Bar
+                  dataKey="open"
+                  fill={chartColors.accent}
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={28}
+                />
+                <Bar
+                  dataKey="resolved"
+                  fill={chartColors.brand}
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={28}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>

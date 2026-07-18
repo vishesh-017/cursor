@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Flame, Hexagon, Map as MapIcon } from "lucide-react";
+import { Flame, Hexagon, Map as MapIcon, Search } from "lucide-react";
 import { cn } from "@/utils/cn";
 
 function LayerToggle({
@@ -24,10 +24,10 @@ function LayerToggle({
       aria-pressed={active}
       title={hint}
       className={cn(
-        "inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-semibold transition",
+        "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition",
         active
-          ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand-strong)] shadow-sm dark:text-teal-100"
-          : "border-[var(--border)] bg-[var(--surface-solid)] text-[var(--foreground)] hover:border-[var(--brand)]/50"
+          ? "border-transparent bg-[var(--brand)] text-white shadow-sm"
+          : "border-[var(--border)] bg-[var(--surface-solid)] text-[var(--foreground)] hover:border-[var(--brand)]/40"
       )}
     >
       <Icon className="h-3.5 w-3.5" />
@@ -49,7 +49,6 @@ export function MapFiltersBar({
   setShowClusters,
   showBoundaries,
   setShowBoundaries,
-  stats,
 }: {
   query: string;
   setQuery: (v: string) => void;
@@ -63,26 +62,29 @@ export function MapFiltersBar({
   setShowClusters: (v: boolean) => void;
   showBoundaries: boolean;
   setShowBoundaries: (v: boolean) => void;
-  stats: { total: number; critical: number; open: number };
 }) {
   const field =
-    "h-11 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface-solid)] px-3 text-sm text-[var(--foreground)] outline-none focus:ring-2 focus:ring-[var(--ring)]";
+    "h-10 w-full rounded-xl border border-[var(--border)] bg-[var(--surface-solid)] px-3 text-sm text-[var(--foreground)] outline-none focus:ring-2 focus:ring-[var(--ring)]";
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-3 lg:grid-cols-[1.4fr_0.8fr_0.8fr]">
+    <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center">
+      <div className="relative min-w-0 flex-1">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search SG Highway, Maninagar, pothole…"
           aria-label="Search infrastructure issues"
-          className={field}
+          className={cn(field, "pl-9")}
         />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
           aria-label="Filter by category"
-          className={field}
+          className={cn(field, "sm:w-[9.5rem]")}
         >
           <option value="">All categories</option>
           <option value="roads">Roads</option>
@@ -97,7 +99,7 @@ export function MapFiltersBar({
           value={priority}
           onChange={(e) => setPriority(e.target.value)}
           aria-label="Filter by priority"
-          className={field}
+          className={cn(field, "sm:w-[9rem]")}
         >
           <option value="">All priorities</option>
           <option value="critical">Critical</option>
@@ -105,10 +107,8 @@ export function MapFiltersBar({
           <option value="medium">Medium</option>
           <option value="low">Low</option>
         </select>
-      </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
+        <div className="col-span-2 flex flex-wrap gap-1.5 sm:col-span-1 sm:ml-1">
           <LayerToggle
             active={showHeatmap}
             onClick={() => {
@@ -135,20 +135,9 @@ export function MapFiltersBar({
             active={showBoundaries}
             onClick={() => setShowBoundaries(!showBoundaries)}
             icon={MapIcon}
-            label="Ward boundaries"
+            label="Wards"
             hint="Show AMC ward polygons"
           />
-        </div>
-        <div className="flex flex-wrap gap-2 text-xs font-semibold">
-          <span className="rounded-full bg-[var(--surface-solid)] px-3 py-1.5 ring-1 ring-[var(--border)]">
-            {stats.total} mapped
-          </span>
-          <span className="rounded-full bg-rose-50 px-3 py-1.5 text-rose-700 ring-1 ring-rose-200 dark:bg-rose-500/10 dark:text-rose-200 dark:ring-rose-500/30">
-            {stats.critical} critical
-          </span>
-          <span className="rounded-full bg-[var(--brand-soft)] px-3 py-1.5 text-[var(--brand-strong)] ring-1 ring-[var(--brand)]/20 dark:text-teal-100">
-            {stats.open} open
-          </span>
         </div>
       </div>
     </div>

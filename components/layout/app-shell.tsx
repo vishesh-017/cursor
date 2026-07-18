@@ -223,7 +223,7 @@ export function AppShell({
 
       <div className="border-t border-white/10 p-3">
         <Link
-          href={user?.role === "citizen" ? "/citizen/profile" : "/admin/dashboard"}
+          href={user?.role === "citizen" ? "/citizen/profile" : "/admin/profile"}
           className={cn(
             "flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 transition hover:bg-white/10",
             collapsed && "justify-center"
@@ -391,14 +391,22 @@ export function AppShell({
                 {userOpen ? (
                   <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-[var(--border)] bg-[var(--surface-solid)] p-2 shadow-xl">
                     <Link
-                      href={user?.role === "citizen" ? "/citizen/profile" : "/admin/dashboard"}
+                      href={
+                        user?.role === "citizen"
+                          ? "/citizen/profile"
+                          : "/admin/profile"
+                      }
                       className="block rounded-xl px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5"
                       onClick={() => setUserOpen(false)}
                     >
                       Profile
                     </Link>
                     <Link
-                      href={user?.role === "citizen" ? "/citizen/settings" : "/admin/analytics"}
+                      href={
+                        user?.role === "citizen"
+                          ? "/citizen/settings"
+                          : "/admin/settings"
+                      }
                       className="block rounded-xl px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5"
                       onClick={() => setUserOpen(false)}
                     >

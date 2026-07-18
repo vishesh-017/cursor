@@ -17,7 +17,14 @@ export async function POST(request: Request) {
       return fail("VALIDATION_ERROR", "Valid email and password required", 422);
     }
 
-    const session = await authenticate(body.data.email, body.data.password);
+    let session;
+    try {
+      session = await authenticate(body.data.email, body.data.password);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Sign-in blocked for this account";
+      return fail("ACCOUNT_RESTRICTED", message, 403);
+    }
     if (!session) {
       return fail("INVALID_CREDENTIALS", "Incorrect email or password", 401);
     }

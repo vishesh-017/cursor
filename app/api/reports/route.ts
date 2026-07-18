@@ -9,6 +9,7 @@ import { analyzeInfrastructure } from "@/lib/ai/analyze";
 import {
   createReport,
   getReportStats,
+  getUserById,
   listReports,
 } from "@/services/store";
 import type { AiAnalysis } from "@/types";
@@ -107,11 +108,21 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const managed = getManagedWards(session);
     const requestedWard = searchParams.get("ward") ?? undefined;
+    // City Map GIS: citywide awareness for any signed-in staff (inbox stays ward-scoped).
+    const citywideMap =
+      searchParams.get("citywide") === "1" &&
+      Boolean(
+        session &&
+          (session.role === "admin" ||
+            session.role === "officer" ||
+            session.role === "citizen")
+      );
 
-    // Ward desks cannot query other wards; city HQ and public map keep full access.
+    // Ward desks cannot query other wards; city HQ, public, and map citywide keep full access.
     let ward = requestedWard;
     let wards: string[] | undefined;
     if (
+      !citywideMap &&
       session &&
       (session.role === "admin" || session.role === "officer") &&
       managed !== "all"
@@ -130,18 +141,19 @@ export async function GET(request: Request) {
       ward = requestedWard;
     }
 
-    const reports = scopeReportsForSession(
-      session,
-      await listReports({
-        citizenId: searchParams.get("citizenId") ?? undefined,
-        status: (searchParams.get("status") as never) ?? undefined,
-        ward,
-        wards: ward ? undefined : wards,
-        priority: searchParams.get("priority") ?? undefined,
-        departmentId: searchParams.get("departmentId") ?? undefined,
-        q: searchParams.get("q") ?? undefined,
-      })
-    );
+    const listed = await listReports({
+      citizenId: searchParams.get("citizenId") ?? undefined,
+      status: (searchParams.get("status") as never) ?? undefined,
+      ward,
+      wards: ward ? undefined : wards,
+      priority: searchParams.get("priority") ?? undefined,
+      departmentId: searchParams.get("departmentId") ?? undefined,
+      q: searchParams.get("q") ?? undefined,
+    });
+
+    const reports = citywideMap
+      ? listed
+      : scopeReportsForSession(session, listed);
 
     const stats =
       searchParams.get("stats") === "1"
@@ -171,6 +183,20 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getSession();
+    if (session?.id) {
+      const profile = await getUserById(session.id);
+      const accountStatus = profile?.accountStatus ?? "active";
+      if (accountStatus === "suspended" || accountStatus === "removed") {
+        return fail(
+          "ACCOUNT_RESTRICTED",
+          accountStatus === "removed"
+            ? "Your account was removed and cannot file reports."
+            : "Your account is suspended and cannot file reports.",
+          403
+        );
+      }
+    }
+
     const json = await request.json();
     const parsed = createSchema.safeParse(json);
 

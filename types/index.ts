@@ -3,6 +3,22 @@ export type UserRole = "citizen" | "admin" | "officer";
 /** City HQ sees all wards; ward desks only receive their ward inbox. */
 export type AdminScope = "city" | "ward";
 
+/** Citizen account lifecycle for fake-report enforcement. */
+export type AccountStatus = "active" | "flagged" | "suspended" | "removed";
+
+export type ModerationAction = "flag" | "suspend" | "remove" | "reinstate";
+
+export interface UserModerationEvent {
+  id: string;
+  userId: string;
+  action: ModerationAction;
+  reason: string;
+  reportId?: string;
+  actorId: string;
+  actorName: string;
+  createdAt: string;
+}
+
 export type ReportCategory =
   | "roads"
   | "water"
@@ -48,6 +64,14 @@ export interface UserProfile {
   joinedAt: string;
   reportsCount: number;
   resolvedCount: number;
+  /** Defaults to active when omitted (seed users). */
+  accountStatus?: AccountStatus;
+  /** Times officers flagged this account for fake / spam reports. */
+  flagCount?: number;
+  /** Latest moderation note from AMC desk. */
+  moderationNote?: string;
+  moderatedAt?: string;
+  moderatedBy?: string;
 }
 
 export interface Department {

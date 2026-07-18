@@ -38,6 +38,16 @@ export async function authenticate(
   const user =
     (await getUserById(cred.userId)) ?? (await getUserByEmail(email));
   if (!user) return null;
+
+  const accountStatus = user.accountStatus ?? "active";
+  if (accountStatus === "suspended" || accountStatus === "removed") {
+    throw new Error(
+      accountStatus === "removed"
+        ? "This account was removed by AMC for fake or abusive reports."
+        : "This account is suspended. Contact your ward desk to appeal."
+    );
+  }
+
   const managedWards =
     user.managedWards?.length
       ? user.managedWards

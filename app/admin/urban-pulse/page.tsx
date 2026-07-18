@@ -157,7 +157,7 @@ export default function AdminUrbanPulsePage() {
               <Tooltip />
               <Legend />
               <Bar dataKey="score" name="Health score" fill="#0f766e" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="open" name="Open issues" fill="#0f172a" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="open" name="Open issues" fill="#f59e0b" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>

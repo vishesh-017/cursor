@@ -17,6 +17,7 @@ import { getDashboardStats as computeStats } from "@/services/analytics";
 import type {
   DepartmentRankingEntry,
   InfrastructureReport,
+  ModerationAction,
   ReportStatus,
   UrbanPulseMetrics,
   UserProfile,
@@ -57,6 +58,96 @@ export async function dbGetUserByEmail(
     .maybeSingle();
   if (error) throw error;
   return data ? mapUser(data as UserRow) : undefined;
+}
+
+export async function dbGetCitizens(): Promise<UserProfile[]> {
+  const { data, error } = await db()
+    .from("users")
+    .select("*")
+    .eq("role", "citizen")
+    .order("points", { ascending: false });
+  if (error) throw error;
+  return ((data ?? []) as UserRow[]).map(mapUser);
+}
+
+export async function dbModerateUser(input: {
+  userId: string;
+  action: ModerationAction;
+  reason: string;
+  reportId?: string;
+  actorId: string;
+  actorName: string;
+}): Promise<UserProfile | null> {
+  const user = await dbGetUserById(input.userId);
+  if (!user || user.role !== "citizen") return null;
+
+  const reason = input.reason.trim();
+  if (reason.length < 4) return null;
+
+  const now = new Date().toISOString();
+  let accountStatus = user.accountStatus ?? "active";
+  let flagCount = user.flagCount ?? 0;
+
+  if (input.action === "flag") {
+    accountStatus = "flagged";
+    flagCount += 1;
+  } else if (input.action === "suspend") {
+    accountStatus = "suspended";
+  } else if (input.action === "remove") {
+    accountStatus = "removed";
+  } else if (input.action === "reinstate") {
+    accountStatus = "active";
+    flagCount = 0;
+  }
+
+  const patch = {
+    account_status: accountStatus,
+    flag_count: flagCount,
+    moderation_note: reason,
+    moderated_at: now,
+    moderated_by: input.actorName,
+  };
+
+  const { data, error } = await db()
+    .from("users")
+    .update(patch)
+    .eq("id", input.userId)
+    .select("*")
+    .maybeSingle();
+  if (error) throw error;
+
+  await db().from("moderation_events").insert({
+    id: `mod-${Date.now()}`,
+    user_id: input.userId,
+    action: input.action,
+    reason,
+    report_id: input.reportId ?? null,
+    actor_id: input.actorId,
+    actor_name: input.actorName,
+    created_at: now,
+  });
+
+  await db().from("notifications").insert({
+    id: `n-mod-${Date.now()}`,
+    user_id: input.userId,
+    title:
+      input.action === "reinstate"
+        ? "Account reinstated"
+        : input.action === "flag"
+          ? "Account flagged for review"
+          : input.action === "suspend"
+            ? "Account suspended"
+            : "Account removed",
+    body:
+      input.action === "reinstate"
+        ? "Your Urbanexus citizen account has been reinstated by AMC."
+        : `AMC moderation (${input.action}): ${reason}`,
+    created_at: now,
+    read: false,
+    href: "/citizen/profile",
+  });
+
+  return data ? mapUser(data as UserRow) : null;
 }
 
 export async function dbListReports(filters?: {

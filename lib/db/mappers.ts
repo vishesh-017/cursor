@@ -32,6 +32,11 @@ export type UserRow = {
   joined_at: string;
   reports_count: number;
   resolved_count: number;
+  account_status?: string | null;
+  flag_count?: number | null;
+  moderation_note?: string | null;
+  moderated_at?: string | null;
+  moderated_by?: string | null;
 };
 
 export type ReportRow = {
@@ -85,6 +90,12 @@ export function mapUser(row: UserRow): UserProfile {
     joinedAt: row.joined_at,
     reportsCount: row.reports_count,
     resolvedCount: row.resolved_count,
+    accountStatus:
+      (row.account_status as UserProfile["accountStatus"]) ?? "active",
+    flagCount: row.flag_count ?? 0,
+    moderationNote: row.moderation_note ?? undefined,
+    moderatedAt: row.moderated_at ?? undefined,
+    moderatedBy: row.moderated_by ?? undefined,
   };
 }
 
@@ -104,6 +115,11 @@ export function userToRow(user: UserProfile): UserRow {
     joined_at: user.joinedAt,
     reports_count: user.reportsCount,
     resolved_count: user.resolvedCount,
+    account_status: user.accountStatus ?? "active",
+    flag_count: user.flagCount ?? 0,
+    moderation_note: user.moderationNote ?? null,
+    moderated_at: user.moderatedAt ?? null,
+    moderated_by: user.moderatedBy ?? null,
   };
 }
 

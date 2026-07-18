@@ -1,3 +1,4 @@
+import { computeFraudScore } from "@/lib/ai/fraud-insights";
 import { departments, wards } from "@/data/seed";
 import { listReports } from "@/services/store";
 import type {
@@ -215,18 +216,22 @@ export async function buildOpsInsight(input: {
 export async function buildDepartmentPulse() {
   const all = await listReports();
   return departments.map((dept) => {
-    const liveOpen = all.filter(
-      (r) => r.departmentId === dept.id && openStatuses.has(r.status)
+    const deskReports = all.filter((r) => r.departmentId === dept.id);
+    const liveOpen = deskReports.filter((r) => openStatuses.has(r.status)).length;
+    const liveCritical = deskReports.filter(
+      (r) => openStatuses.has(r.status) && r.priority === "critical"
     ).length;
-    const liveCritical = all.filter(
-      (r) =>
-        r.departmentId === dept.id &&
-        openStatuses.has(r.status) &&
-        r.priority === "critical"
+    const resolved = deskReports.filter((r) => r.status === "resolved").length;
+    const fraudSuspects = deskReports.filter(
+      (r) => r.ai && computeFraudScore(r.ai) >= 60
     ).length;
-    const resolved = all.filter(
-      (r) => r.departmentId === dept.id && r.status === "resolved"
-    ).length;
+    const avgFraudScore = (() => {
+      const scored = deskReports.filter((r) => r.ai);
+      if (!scored.length) return 0;
+      return Math.round(
+        scored.reduce((s, r) => s + computeFraudScore(r.ai!), 0) / scored.length
+      );
+    })();
     const risk = backlogRisk(liveOpen, dept.efficiency);
     return {
       id: dept.id,
@@ -234,6 +239,8 @@ export async function buildDepartmentPulse() {
       head: dept.head,
       liveOpen,
       liveCritical,
+      fraudSuspects,
+      avgFraudScore,
       resolvedSample: resolved,
       avgResolutionHours: dept.avgResolutionHours,
       efficiency: dept.efficiency,
@@ -243,6 +250,10 @@ export async function buildDepartmentPulse() {
         1,
         Math.round((liveOpen * dept.avgResolutionHours) / 24 / Math.max(1, dept.efficiency / 40))
       ),
+      aiNote:
+        fraudSuspects > 0
+          ? `AI: ${fraudSuspects} fraud-risk ticket${fraudSuspects === 1 ? "" : "s"} on this desk`
+          : "AI: inbox authenticity looks clean",
     };
   });
 }

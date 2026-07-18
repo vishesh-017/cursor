@@ -1,14 +1,17 @@
 import { isDatabaseConfigured } from "@/lib/db/config";
 import type {
   InfrastructureReport,
+  ModerationAction,
   ReportStatus,
 } from "@/types";
 import {
   memoryCreateReport,
   memoryGetBadges,
+  memoryGetCitizens,
   memoryGetDepartmentLeaderboard,
   memoryGetDepartments,
   memoryGetLeaderboard,
+  memoryGetModerationEvents,
   memoryGetNotifications,
   memoryGetReportById,
   memoryGetReportStats,
@@ -21,11 +24,13 @@ import {
   memoryGetWards,
   memoryListReports,
   memoryMarkNotificationRead,
+  memoryModerateUser,
   memoryUpdateReport,
 } from "@/services/memory-store";
 import {
   dbCreateReport,
   dbGetBadges,
+  dbGetCitizens,
   dbGetDepartmentLeaderboard,
   dbGetDepartments,
   dbGetLeaderboard,
@@ -41,6 +46,7 @@ import {
   dbGetWards,
   dbListReports,
   dbMarkNotificationRead,
+  dbModerateUser,
   dbUpdateReport,
 } from "@/services/supabase-store";
 import { getDashboardStats as computeStats } from "@/services/analytics";
@@ -59,6 +65,29 @@ export async function getUserById(id: string) {
 
 export async function getUserByEmail(email: string) {
   return useDb() ? dbGetUserByEmail(email) : memoryGetUserByEmail(email);
+}
+
+export async function getCitizens() {
+  return useDb() ? dbGetCitizens() : memoryGetCitizens();
+}
+
+export async function moderateUser(input: {
+  userId: string;
+  action: ModerationAction;
+  reason: string;
+  reportId?: string;
+  actorId: string;
+  actorName: string;
+}) {
+  return useDb() ? dbModerateUser(input) : memoryModerateUser(input);
+}
+
+export async function getModerationEvents(userId?: string) {
+  if (useDb()) {
+    // Events live in moderation_events; optional fetch for detail views later.
+    return [];
+  }
+  return memoryGetModerationEvents(userId);
 }
 
 export async function listReports(filters?: {

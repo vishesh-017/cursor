@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
+import { ModerateCitizen } from "@/components/admin/moderate-citizen";
 import { AiAnalysisPanel } from "@/components/report/ai-analysis-panel";
 import { AiVsActualPanel } from "@/components/report/ai-vs-actual";
 import { EvidenceGallery } from "@/components/report/evidence-gallery";
@@ -16,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import type {
+  AccountStatus,
   AiAnalysis,
   DepartmentId,
   InfrastructureReport,
@@ -57,6 +59,11 @@ export default function AdminReportDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [citizenStatus, setCitizenStatus] = useState<{
+    accountStatus: AccountStatus;
+    flagCount: number;
+    moderationNote?: string;
+  } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -81,6 +88,27 @@ export default function AdminReportDetailPage() {
         setPriority(next.priority);
         setDepartmentId(next.departmentId);
         setAssignedTo(next.assignedTo ?? "");
+
+        const userRes = await fetch(`/api/users/${next.citizenId}`, {
+          cache: "no-store",
+        });
+        const userJson = (await userRes.json()) as {
+          success: boolean;
+          data?: {
+            user: {
+              accountStatus?: AccountStatus;
+              flagCount?: number;
+              moderationNote?: string;
+            };
+          };
+        };
+        if (userRes.ok && userJson.success && userJson.data?.user) {
+          setCitizenStatus({
+            accountStatus: userJson.data.user.accountStatus ?? "active",
+            flagCount: userJson.data.user.flagCount ?? 0,
+            moderationNote: userJson.data.user.moderationNote,
+          });
+        }
       } catch (err) {
         if (active) {
           setError(err instanceof Error ? err.message : "Failed to load");
@@ -314,6 +342,44 @@ export default function AdminReportDetailPage() {
               );
             })}
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="glass-card border-amber-200/80">
+        <CardHeader>
+          <CardTitle>Fake report — citizen moderation</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-4 text-sm text-[var(--muted)]">
+            If this ticket looks staged or abusive, flag the citizen, suspend
+            their login, or remove the account. You can reject this report at the
+            same time.
+          </p>
+          <ModerateCitizen
+            citizenId={report.citizenId}
+            citizenName={report.citizenName}
+            reportId={report.id}
+            rejectReportDefault
+            compact
+            accountStatus={citizenStatus?.accountStatus ?? "active"}
+            flagCount={citizenStatus?.flagCount ?? 0}
+            moderationNote={citizenStatus?.moderationNote}
+            onModerated={(user) => {
+              setCitizenStatus({
+                accountStatus: user.accountStatus ?? "active",
+                flagCount: user.flagCount ?? 0,
+                moderationNote: user.moderationNote,
+              });
+              void fetch(`/api/reports/${params.id}`, { cache: "no-store" })
+                .then((res) => res.json())
+                .then((json: { success?: boolean; data?: { report: InfrastructureReport } }) => {
+                  if (json.success && json.data?.report) {
+                    setReport(json.data.report);
+                    setStatus(json.data.report.status);
+                  }
+                });
+            }}
+          />
         </CardContent>
       </Card>
 

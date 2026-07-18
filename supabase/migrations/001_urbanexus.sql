@@ -15,7 +15,13 @@ create table if not exists public.users (
   badges text[] not null default '{}',
   joined_at timestamptz not null default now(),
   reports_count integer not null default 0,
-  resolved_count integer not null default 0
+  resolved_count integer not null default 0,
+  account_status text not null default 'active'
+    check (account_status in ('active', 'flagged', 'suspended', 'removed')),
+  flag_count integer not null default 0,
+  moderation_note text,
+  moderated_at timestamptz,
+  moderated_by text
 );
 
 create table if not exists public.wards (
@@ -109,6 +115,20 @@ create table if not exists public.notifications (
 create index if not exists notifications_user_created_idx
   on public.notifications (user_id, created_at desc);
 
+create table if not exists public.moderation_events (
+  id text primary key,
+  user_id text not null references public.users (id) on delete cascade,
+  action text not null check (action in ('flag', 'suspend', 'remove', 'reinstate')),
+  reason text not null,
+  report_id text,
+  actor_id text not null,
+  actor_name text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists moderation_events_user_idx
+  on public.moderation_events (user_id, created_at desc);
+
 -- Service role bypasses RLS; lock down anon/authenticated by default.
 alter table public.users enable row level security;
 alter table public.wards enable row level security;
@@ -118,3 +138,4 @@ alter table public.rewards enable row level security;
 alter table public.leaderboard_entries enable row level security;
 alter table public.reports enable row level security;
 alter table public.notifications enable row level security;
+alter table public.moderation_events enable row level security;
