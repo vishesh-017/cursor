@@ -4,7 +4,9 @@ const serverEnvSchema = z.object({
   EXA_API_KEY: z.string().min(1).optional(),
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(1).optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+  SUPABASE_SECRET_KEY: z.string().min(1).optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
@@ -14,7 +16,10 @@ function readEnv(): ServerEnv {
     EXA_API_KEY: process.env.EXA_API_KEY,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SECRET_KEY: process.env.SUPABASE_SECRET_KEY,
   });
 
   if (!parsed.success) {
@@ -25,6 +30,21 @@ function readEnv(): ServerEnv {
 }
 
 export const env = readEnv();
+
+/** Publishable (`sb_publishable_…`) or legacy anon JWT. */
+export function getSupabaseAnonKey(): string | undefined {
+  const key =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  return key?.trim() || undefined;
+}
+
+/** Secret (`sb_secret_…`) or legacy service_role JWT — server only. */
+export function getSupabaseServiceKey(): string | undefined {
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
+  return key?.trim() || undefined;
+}
 
 export function requireExaApiKey(): string {
   const key = process.env.EXA_API_KEY;
@@ -41,7 +61,7 @@ export function getSupabasePublicConfig(): {
   anonKey: string;
 } | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const anonKey = getSupabaseAnonKey();
   if (!url || !anonKey) {
     return null;
   }
@@ -49,10 +69,10 @@ export function getSupabasePublicConfig(): {
 }
 
 export function requireSupabaseServiceRoleKey(): string {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const key = getSupabaseServiceKey();
   if (!key) {
     throw new Error(
-      "SUPABASE_SERVICE_ROLE_KEY is missing. Add it to server-only environment variables."
+      "SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SECRET_KEY) is missing. Add the sb_secret_… or service_role key from Supabase → API Keys."
     );
   }
   return key;
@@ -60,8 +80,8 @@ export function requireSupabaseServiceRoleKey(): string {
 
 export function getEnvStatus() {
   const supabaseUrl = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL);
-  const supabaseAnon = Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-  const supabaseService = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const supabaseAnon = Boolean(getSupabaseAnonKey());
+  const supabaseService = Boolean(getSupabaseServiceKey());
   return {
     exa: Boolean(process.env.EXA_API_KEY),
     supabaseUrl,

@@ -36,8 +36,9 @@ type StatusData = {
 
 const ENV_SNIPPET = `# Shared cloud DB — paste the SAME three values on every laptop
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key`;
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
+SUPABASE_SERVICE_ROLE_KEY=sb_secret_...
+# (Legacy JWT anon + service_role keys also work)`;
 
 export default function AdminDatabasePage() {
   const [status, setStatus] = useState<StatusData | null>(null);
@@ -210,18 +211,23 @@ export default function AdminDatabasePage() {
               <p className="mt-1">
                 Open{" "}
                 <a
-                  href="https://supabase.com/dashboard"
+                  href="https://supabase.com/dashboard/project/kgsmdprurziemjmkouha/settings/api-keys"
                   target="_blank"
                   rel="noreferrer"
                   className="font-medium text-[var(--accent)] underline-offset-2 hover:underline"
                 >
-                  supabase.com/dashboard
+                  Project Settings → API Keys
                 </a>
-                , create a project, then go to{" "}
+                . Copy Project URL,{" "}
                 <span className="font-medium text-[var(--foreground)]">
-                  Project Settings → API
+                  publishable
                 </span>{" "}
-                and copy Project URL, anon public key, and service_role key.
+                key (`sb_publishable_…`), and{" "}
+                <span className="font-medium text-[var(--foreground)]">
+                  secret
+                </span>{" "}
+                key (`sb_secret_…` or legacy service_role). The Postgres
+                connection string password is not used by this app.
               </p>
             </div>
           </li>

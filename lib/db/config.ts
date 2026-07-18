@@ -1,13 +1,10 @@
+import { getEnvStatus } from "@/lib/env";
 import { createServiceSupabaseClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-/** True when all three Supabase env vars are present. */
+/** True when URL + publishable/anon + secret/service_role are present. */
 export function isDatabaseConfigured(): boolean {
-  return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
+  return getEnvStatus().database;
 }
 
 export function getDbClient(): SupabaseClient | null {
